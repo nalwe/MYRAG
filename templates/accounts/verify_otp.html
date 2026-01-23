@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Verify Login{% endblock %}
+
+{% block content %}
+<div class="flex items-center justify-center min-h-screen bg-gray-50">
+
+  <div class="w-full max-w-md bg-white shadow-md rounded-lg p-6">
+
+    <h2 class="text-2xl font-semibold text-center mb-2">
+      Verify Login Code
+    </h2>
+
+    <p class="text-sm text-gray-500 text-center mb-4">
+      Enter the 6-digit code sent to your email.
+    </p>
+
+    <!-- Messages -->
+    {% if messages %}
+      {% for message in messages %}
+        <div class="mb-3 p-2 rounded text-sm
+                    {% if message.tags == 'error' %}
+                      bg-red-100 text-red-700 border border-red-200
+                    {% else %}
+                      bg-green-100 text-green-700 border border-green-200
+                    {% endif %}">
+          {{ message }}
+        </div>
+      {% endfor %}
+    {% endif %}
+
+    <form method="post" class="space-y-4">
+      {% csrf_token %}
+
+      <input
+        type="text"
+        name="code"
+        maxlength="6"
+        required
+        autofocus
+        placeholder="Enter 6-digit code"
+        class="w-full text-center tracking-widest text-lg rounded-md
+               border-gray-300 shadow-sm p-3
+               focus:border-indigo-500 focus:ring-indigo-500"
+      >
+
+      <button
+        type="submit"
+        class="w-full py-2 px-4 rounded-md shadow-sm text-white
+               bg-green-600 hover:bg-green-700 transition">
+        Verify & Login →
+      </button>
+    </form>
+
+    <p class="mt-4 text-xs text-center text-gray-500">
+      Didn’t receive the code? Contact your administrator.
+    </p>
+
+  </div>
+
+</div>
+{% endblock %}

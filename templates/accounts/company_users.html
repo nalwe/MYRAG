@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-6 py-6">
+
+  <!-- Header -->
+  <div class="mb-6">
+    <h2 class="text-2xl font-bold text-gray-900">
+      {{ organization.name }} — Users
+    </h2>
+    <p class="text-sm text-gray-500">
+      Manage company members, roles, and access
+    </p>
+  </div>
+
+  <!-- Users Table -->
+  <div class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead class="bg-gray-50 text-gray-600">
+        <tr>
+          <th class="p-3 text-left font-medium">User</th>
+          <th class="p-3 text-center font-medium">Role</th>
+          <th class="p-3 text-center font-medium">Tier</th>
+          <th class="p-3 text-center font-medium">Status</th>
+          <th class="p-3 text-center font-medium">Actions</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-100">
+
+        {% for m in members %}
+        <tr class="hover:bg-gray-50">
+          <td class="p-3 font-medium text-gray-900">
+            {{ m.user.username }}
+          </td>
+
+          <td class="p-3 text-center capitalize">
+            {{ m.role }}
+          </td>
+
+          <td class="p-3 text-center capitalize">
+            {{ m.tier }}
+          </td>
+
+          <td class="p-3 text-center">
+            {% if m.user.is_active %}
+              <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium
+                           bg-green-100 text-green-700">
+                Active
+              </span>
+            {% else %}
+              <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium
+                           bg-red-100 text-red-700">
+                Inactive
+              </span>
+            {% endif %}
+          </td>
+
+          <td class="p-3 text-center space-x-3">
+            {% if m.user != request.user %}
+
+              {% if m.user.is_active %}
+                <a href="{% url 'toggle_admin' m.id %}"
+                   class="text-blue-600 hover:underline">
+                  Promote / Demote
+                </a>
+
+                <a href="{% url 'deactivate_user' m.id %}"
+                   class="text-red-600 hover:underline"
+                   onclick="return confirm('Deactivate this user?')">
+                  Deactivate
+                </a>
+              {% else %}
+                <a href="{% url 'reactivate_user' m.id %}"
+                   class="text-green-600 hover:underline"
+                   onclick="return confirm('Reactivate this user?')">
+                  Reactivate
+                </a>
+              {% endif %}
+
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+
+      </tbody>
+    </table>
+  </div>
+
+</div>
+{% endblock %}

@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Django
+.env
+db.sqlite3
+media/
+
+# Virtual env
+.venv/
+venv/
+
+# FAISS
+faiss_indexes/*
+!faiss_indexes/.gitkeep
+
+# OS
+.DS_Store
+Thumbs.db
+data.json
+
+
+
+
+
+
+
+
+
+
+

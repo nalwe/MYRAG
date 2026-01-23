@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-6 py-6">
+
+  <!-- Header -->
+  <div class="mb-8">
+    <h1 class="text-3xl font-bold text-gray-900">
+      Admin Dashboard
+    </h1>
+    <p class="text-gray-600 mt-1">
+      Welcome, {{ request.user.username }} 👋
+    </p>
+  </div>
+
+  <!-- =========================
+       CORE ADMIN ACTIONS
+  ========================== -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-5 mb-12">
+
+    <a href="{% url 'admin_user_list' %}"
+       class="p-5 bg-white shadow-sm rounded-xl border border-gray-200
+              hover:bg-gray-50 transition">
+      👥 Manage Users
+    </a>
+
+    <a href="{% url 'organization_list' %}"
+       class="p-5 bg-white shadow-sm rounded-xl border border-gray-200
+              hover:bg-gray-50 transition">
+      🏢 Organizations
+    </a>
+
+    <a href="/admin/"
+       class="p-5 bg-white shadow-sm rounded-xl border border-gray-200
+              hover:bg-gray-50 transition">
+      ⚙️ Django Admin
+    </a>
+
+  </div>
+
+  <!-- =========================
+       ORGANIZATION ADMIN SHORTCUT
+  ========================== -->
+  {% if request.user.profile.is_org_admin %}
+  <div class="mb-12">
+    <h2 class="text-lg font-semibold text-gray-900 mb-4">
+      🏢 Organization
+    </h2>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+
+      <a href="{% url 'organization_dashboard' %}"
+         class="p-5 bg-white shadow-sm rounded-xl border border-blue-200
+                hover:bg-blue-50 transition">
+        📊 Organization Dashboard
+      </a>
+
+      <a href="{% url 'org_branding' %}"
+         class="p-5 bg-white shadow-sm rounded-xl border border-blue-200
+                hover:bg-blue-50 transition">
+        🎨 Organization Branding
+      </a>
+
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- =========================
+       SYSTEM ADMIN (SUPERUSER)
+  ========================== -->
+  {% if request.user.is_superuser %}
+  <div class="mb-6">
+    <h2 class="text-lg font-semibold text-gray-900 mb-4">
+      🛠 System Administration
+    </h2>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+
+      <a href="{% url 'create_organization' %}"
+         class="p-5 bg-white shadow-sm rounded-xl border border-green-200
+                hover:bg-green-50 transition">
+        ➕ Add New Organization
+      </a>
+
+      <a href="{% url 'organization_list' %}"
+         class="p-5 bg-white shadow-sm rounded-xl border border-green-200
+                hover:bg-green-50 transition">
+        🏢 Organization Overview
+      </a>
+
+      <a href="{% url 'audit_log' %}"
+         class="p-5 bg-white shadow-sm rounded-xl border border-green-200
+                hover:bg-green-50 transition">
+        🧾 Audit Log
+      </a>
+
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

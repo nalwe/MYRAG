@@ -1,0 +1,214 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="max-w-7xl mx-auto px-6 py-6 space-y-6">
+
+  {% if mode == "superuser" %}
+  <!-- =========================
+       SUPERUSER BANNER + ORG SWITCHER
+  ========================== -->
+  <div class="flex flex-wrap items-center justify-between gap-3
+              bg-purple-100 border border-purple-300
+              text-purple-800 rounded-lg px-4 py-3">
+
+    <div class="flex items-center gap-2 text-sm font-medium">
+      🛡️ You are viewing this organization as a Superuser
+    </div>
+
+    <!-- 🔀 Organization Switcher -->
+    <form method="get" class="flex items-center gap-2">
+      <label class="text-xs font-medium">
+        Switch Organization:
+      </label>
+
+      <select
+        name="org_id"
+        onchange="this.form.submit()"
+        class="text-sm border border-purple-300 rounded px-2 py-1 bg-white">
+
+        {% for org in organizations %}
+          <option value="{{ org.id }}"
+            {% if org.id == organization.id %}selected{% endif %}>
+            {{ org.name }}
+          </option>
+        {% endfor %}
+      </select>
+    </form>
+
+    <div class="flex items-center gap-3 text-sm">
+      <a href="{% url 'admin_dashboard' %}"
+         class="underline hover:text-purple-900">
+        ← Back to Admin Dashboard
+      </a>
+
+      <span class="opacity-50">|</span>
+
+      <span class="text-xs">
+        Org ID: {{ organization.id }}
+      </span>
+    </div>
+
+  </div>
+  {% endif %}
+
+
+  <!-- =========================
+       HEADER
+  ========================== -->
+  <div class="flex flex-wrap items-center justify-between gap-4">
+
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900">
+        {{ organization.name }}
+      </h1>
+      <p class="text-sm text-gray-500">
+        {{ organization.tier_label }} · {{ organization.user_count }} users
+      </p>
+    </div>
+
+    <div class="flex items-center gap-4">
+      {% if organization.logo %}
+        <img src="{{ organization.logo.url }}"
+             class="h-12 w-12 object-contain rounded border">
+      {% endif %}
+
+      <a href="{% url 'org_branding' %}"
+         class="text-sm text-blue-600 hover:underline">
+        Change Logo
+      </a>
+    </div>
+
+  </div>
+
+  <!-- =========================
+       QUICK ACTIONS
+  ========================== -->
+  <div class="flex flex-wrap gap-3">
+
+    <a href="{% url 'document_upload' %}"
+       class="px-4 py-2 text-sm rounded bg-blue-600 text-white hover:bg-blue-700">
+      ➕ Upload Document
+    </a>
+
+    <a href="{% url 'org_invite' %}"
+       class="px-4 py-2 text-sm rounded bg-green-600 text-white hover:bg-green-700">
+      👤 Invite User
+    </a>
+
+  </div>
+
+  <!-- =========================
+       API USAGE
+  ========================== -->
+  <div class="bg-white p-4 rounded shadow">
+
+    <div class="flex items-center justify-between mb-2">
+      <h3 class="font-semibold">API Usage</h3>
+      <span class="text-sm text-gray-500">
+        {{ api_used }} / {{ api_limit }} tokens
+      </span>
+    </div>
+
+    <div class="w-full bg-gray-200 rounded h-3 overflow-hidden">
+      <div class="bg-blue-600 h-3 rounded transition-all"
+           style="width: {{ api_used|floatformat:0 }}%;">
+      </div>
+    </div>
+
+    <p class="text-xs text-gray-500 mt-1">
+      Remaining: {{ organization.remaining_tokens }} tokens
+    </p>
+
+  </div>
+
+  <!-- =========================
+       DOCUMENTS
+  ========================== -->
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+    <!-- 🏢 Organization Docs -->
+    <div class="bg-white p-4 rounded shadow">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="font-semibold">Organization Documents</h3>
+        <span class="text-xs text-gray-400">
+          {{ org_documents.count }} total
+        </span>
+      </div>
+
+      {% for doc in org_documents %}
+        <div class="flex justify-between text-sm border-b py-1">
+          <span class="truncate">{{ doc.display_name }}</span>
+
+          {% if doc.is_public %}
+            <span class="text-green-600 text-xs">Public</span>
+          {% else %}
+            <span class="text-gray-400 text-xs">Private</span>
+          {% endif %}
+        </div>
+      {% empty %}
+        <p class="text-sm text-gray-400">No documents yet.</p>
+      {% endfor %}
+    </div>
+
+    <!-- 🌍 Global Docs -->
+    <div class="bg-white p-4 rounded shadow">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="font-semibold">Global Public Documents</h3>
+        <span class="text-xs text-gray-400">
+          {{ global_documents.count }} available
+        </span>
+      </div>
+
+      {% for doc in global_documents %}
+        <div class="text-sm border-b py-1 truncate">
+          🌍 {{ doc.display_name }}
+        </div>
+      {% empty %}
+        <p class="text-sm text-gray-400">No global documents.</p>
+      {% endfor %}
+    </div>
+
+  </div>
+
+  <!-- =========================
+       USERS
+  ========================== -->
+  <div class="bg-white p-4 rounded shadow overflow-x-auto">
+    <h3 class="font-semibold mb-3">Organization Users</h3>
+
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="text-left border-b">
+          <th class="py-2">Email</th>
+          <th>Role</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+
+      <tbody>
+        {% for member in members %}
+          <tr class="border-b hover:bg-gray-50">
+            <td class="py-2">{{ member.user.email }}</td>
+            <td>{{ member.get_role_display }}</td>
+            <td>
+              {% if member.user.is_active %}
+                <span class="text-green-600">Active</span>
+              {% else %}
+                <span class="text-red-600">Suspended</span>
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="3" class="py-4 text-center text-gray-400">
+              No users yet.
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+{% endblock %}

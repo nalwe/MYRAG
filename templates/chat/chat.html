@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+{% block title %}Chat{% endblock %}
+{% block content %}
+
+<div class="flex h-screen bg-gray-50">
+
+  <!-- =========================
+       SIDEBAR — CHATS
+  ========================== -->
+  <aside class="w-64 bg-white border-r flex flex-col">
+
+    <div class="p-4 border-b">
+      <h2 class="font-semibold text-lg">💬 Chats</h2>
+    </div>
+
+    <div class="p-4 space-y-2">
+      <a href="{% url 'chat_view' %}"
+         class="block text-center bg-blue-600 text-white text-sm py-2 rounded hover:bg-blue-700">
+        ➕ New Chat
+      </a>
+
+      <form method="post"
+            action="{% url 'clear_all_chats' %}"
+            onsubmit="return confirm('This will permanently delete ALL your chats. Continue?');">
+        {% csrf_token %}
+        <button
+          class="w-full bg-red-600 text-white text-sm py-2 rounded hover:bg-red-700">
+          🗑️ Clear All Chats
+        </button>
+      </form>
+    </div>
+
+    <div class="flex-1 overflow-y-auto px-2 space-y-1">
+      {% for s in sessions %}
+        <div class="group flex items-center justify-between">
+          <a href="{% url 'chat_session' s.id %}"
+             class="flex-1 px-3 py-2 text-sm truncate rounded
+               {% if active_session and s.id == active_session.id %}
+                 bg-blue-100 font-semibold border-l-4 border-blue-500
+               {% else %}
+                 hover:bg-gray-100
+               {% endif %}">
+            {{ s.title|default:"New Chat" }}
+          </a>
+
+          <form method="post"
+                action="{% url 'delete_chat' s.id %}"
+                onsubmit="return confirm('Delete this chat?');"
+                class="hidden group-hover:block">
+            {% csrf_token %}
+            <button class="text-red-500 text-xs px-2">✖</button>
+          </form>
+        </div>
+      {% endfor %}
+    </div>
+  </aside>
+
+  <!-- =========================
+       MAIN CHAT
+  ========================== -->
+  <main class="flex-1 flex flex-col">
+
+    <!-- HEADER -->
+    <header class="bg-white border-b px-6 py-3 flex justify-between items-center">
+      <span class="font-semibold text-gray-800">
+        {{ active_session.title|default:"Chat" }}
+      </span>
+    </header>
+
+    <!-- =========================
+         SELECTED DOCUMENT BAR
+    ========================== -->
+    {% if active_document %}
+      <div class="mx-6 mt-3 p-3 border border-blue-200 bg-blue-50 rounded text-sm flex justify-between items-center">
+        <div>
+          📄 <strong>Selected document:</strong>
+          {{ active_document.display_name }}
+
+          {% if active_document.is_public %}
+            <span class="ml-2 text-xs px-2 py-0.5 rounded bg-green-100 text-green-700">
+              Public
+            </span>
+          {% endif %}
+        </div>
+
+        <a href="{% url 'chat_view' %}"
+           class="text-xs text-blue-600 hover:underline">
+          Clear
+        </a>
+      </div>
+    {% endif %}
+
+    <!-- =========================
+         MESSAGES
+    ========================== -->
+    <section id="chat-messages" class="flex-1 overflow-y-auto p-6 space-y-6">
+
+      {% for msg in messages %}
+        {% if msg.role == "user" %}
+          <div class="flex justify-end">
+            <div class="max-w-xl bg-blue-600 text-white px-4 py-2 rounded-lg text-sm shadow">
+              {{ msg.content|linebreaks }}
+            </div>
+          </div>
+        {% else %}
+          <div class="flex justify-start">
+            <div class="bg-white border border-gray-200 rounded-xl p-6 max-w-3xl w-full shadow-sm">
+
+              <div class="flex justify-between items-center mb-3 text-xs">
+                <span class="px-2 py-1 bg-gray-100 text-gray-600 rounded">
+                  💬 Assistant
+                </span>
+
+                <div class="flex gap-3">
+                  <button onclick="copyResponse('{{ msg.id }}')"
+                          class="text-blue-600 hover:underline">
+                    Copy
+                  </button>
+                </div>
+              </div>
+
+              <div
+                id="msg-{{ msg.id }}"
+                class="prose prose-sm max-w-none"
+              >
+                {{ msg.content|safe }}
+              </div>
+
+              {% if msg.sources.documents %}
+                <div class="mt-5 pt-3 border-t text-xs text-gray-600">
+                  <div class="font-semibold mb-1">📚 Source Document</div>
+                  <ul class="list-disc ml-4 space-y-1">
+                    {% for src in msg.sources.documents %}
+                      <li>
+                        <a href="{% url 'document_preview' src.id %}"
+                           class="text-blue-600 hover:underline"
+                           target="_blank">
+                          {{ src.title }}
+                        </a>
+                      </li>
+                    {% endfor %}
+                  </ul>
+                </div>
+              {% endif %}
+
+              {{ msg.sources|json_script:"sources-"|add:msg.id }}
+
+            </div>
+          </div>
+        {% endif %}
+      {% empty %}
+        <p class="text-gray-500">Ask a question to start chatting.</p>
+      {% endfor %}
+
+    </section>
+
+    <!-- =========================
+         INPUT
+    ========================== -->
+    <form method="post" class="bg-white border-t p-4">
+      {% csrf_token %}
+
+      {% if active_document %}
+        <!-- 🔒 PRESERVE SELECTED DOCUMENT -->
+        <input type="hidden" name="doc" value="{{ active_document.id }}">
+      {% endif %}
+
+      <div class="flex gap-3">
+        <input type="text"
+               name="query"
+               placeholder="Ask a question..."
+               class="flex-1 border rounded px-4 py-2 text-sm focus:ring focus:ring-blue-200"
+               required>
+        <button class="bg-blue-600 text-white px-5 py-2 rounded hover:bg-blue-700">
+          Send
+        </button>
+      </div>
+    </form>
+
+  </main>
+</div>
+
+<script>
+function copyResponse(id) {
+  const el = document.getElementById(`msg-${id}`);
+  if (!el) return;
+  navigator.clipboard.writeText(el.innerText);
+}
+
+const chat = document.getElementById("chat-messages");
+if (chat) chat.scrollTop = chat.scrollHeight;
+</script>
+
+{% endblock %}

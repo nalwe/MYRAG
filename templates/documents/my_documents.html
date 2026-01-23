@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto p-6 flex gap-6">
+
+  <!-- ================= SIDEBAR ================= -->
+  <aside class="w-64 shrink-0">
+
+    <h2 class="font-semibold mb-3">📂 Folders</h2>
+
+    <!-- CREATE FOLDER -->
+    <form method="post"
+          action="{% url 'create_folder' %}"
+          class="mb-4 flex gap-2">
+      {% csrf_token %}
+      <input
+        type="text"
+        name="name"
+        placeholder="New folder"
+        class="flex-1 border rounded px-2 py-1 text-sm"
+        required
+      >
+      <button
+        type="submit"
+        class="px-3 py-1 bg-blue-600 text-white rounded text-sm">
+        +
+      </button>
+    </form>
+
+    <!-- ALL DOCUMENTS -->
+    <div
+      class="folder-drop-zone px-3 py-2 rounded mb-1 cursor-pointer
+      {% if not active_folder %}bg-blue-100{% else %}hover:bg-gray-100{% endif %}"
+      data-folder-id=""
+      ondragover="onDragOver(event)"
+      ondrop="onDrop(event)"
+      onclick="window.location='{{ request.path }}'">
+      📁 All Documents
+    </div>
+
+    <!-- USER FOLDERS -->
+    {% for folder in folders %}
+      <div
+        class="folder-drop-zone px-3 py-2 rounded mb-1
+        {% if active_folder == folder.id %}bg-blue-100{% else %}hover:bg-gray-100{% endif %}"
+        data-folder-id="{{ folder.id }}"
+        ondragover="onDragOver(event)"
+        ondrop="onDrop(event)"
+      >
+
+        <a href="?folder={{ folder.id }}"
+           class="block font-medium text-sm">
+          📂 {{ folder.name }}
+        </a>
+
+        <!-- CHAT WITH FOLDER -->
+        <a href="{% url 'chat_view' %}?scope=my&folder={{ folder.id }}"
+           class="text-xs text-blue-600 hover:underline ml-4 mt-1 block">
+          💬 Chat folder
+        </a>
+      </div>
+    {% endfor %}
+  </aside>
+
+  <!-- ================= MAIN CONTENT ================= -->
+  <section class="flex-1">
+
+    <!-- HEADER -->
+    <div class="flex justify-between items-center mb-6">
+      <h1 class="text-2xl font-bold">📁 My Documents</h1>
+
+      <a href="{% url 'document_upload' %}"
+         class="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700">
+        ➕ Upload
+      </a>
+    </div>
+
+    <!-- SEARCH -->
+    <form method="get" class="mb-6 flex gap-2 items-center">
+      {% if active_folder %}
+        <input type="hidden" name="folder" value="{{ active_folder }}">
+      {% endif %}
+
+      <input
+        type="text"
+        name="q"
+        value="{{ query }}"
+        placeholder="Search your documents..."
+        class="flex-1 border rounded px-4 py-2 text-sm focus:ring focus:ring-blue-200"
+      >
+
+      <button
+        type="submit"
+        class="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700">
+        🔍 Search
+      </button>
+
+      {% if query %}
+        <a href="?{% if active_folder %}folder={{ active_folder }}{% endif %}"
+           class="px-4 py-2 border rounded text-sm hover:bg-gray-100">
+          ✖ Clear
+        </a>
+      {% endif %}
+    </form>
+
+    <!-- DOCUMENT LIST -->
+    {% if documents %}
+      <div class="grid gap-4">
+        {% for doc in documents %}
+        <div
+          class="border rounded p-4 flex justify-between items-center hover:bg-gray-50"
+          draggable="true"
+          data-doc-id="{{ doc.id }}"
+          ondragstart="onDragStart(event)"
+        >
+
+          <!-- DOCUMENT INFO -->
+          <div>
+            <p class="font-medium">
+              {{ doc.display_name }}
+            </p>
+            <p class="text-xs text-gray-500">
+              Uploaded {{ doc.created_at|date:"M d, Y" }}
+            </p>
+          </div>
+
+          <!-- ACTIONS -->
+          <div class="flex items-center gap-4 text-sm">
+
+            <a href="{% url 'chat_view' %}?scope=my&doc={{ doc.id }}"
+               class="text-blue-600 hover:underline">
+              💬 Chat
+            </a>
+
+            <a href="{{ doc.file.url }}"
+               target="_blank"
+               class="text-gray-600 hover:underline">
+              👀 View
+            </a>
+
+            <a href="{% url 'edit_document' doc.id %}"
+               class="text-gray-600 hover:underline">
+              ✏️ Edit
+            </a>
+
+            <a href="{% url 'document_versions' doc.id %}"
+               class="text-gray-600 hover:underline">
+              🔄 Versions
+            </a>
+
+            <a href="{% url 'share_document' doc.id %}"
+               class="text-gray-600 hover:underline">
+              🔐 Share
+            </a>
+
+            <form method="post"
+                  action="{% url 'delete_document' doc.id %}"
+                  onsubmit="return confirm('Delete this document?');"
+                  class="inline">
+              {% csrf_token %}
+              <button type="submit"
+                      class="text-red-600 hover:underline">
+                🗑 Delete
+              </button>
+            </form>
+
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="text-gray-500 mt-10">
+        No documents found.
+      </p>
+    {% endif %}
+  </section>
+</div>
+
+<!-- ================= DRAG & DROP SCRIPT ================= -->
+<script>
+let draggedDocId = null;
+
+function onDragStart(event) {
+  draggedDocId = event.currentTarget.dataset.docId;
+  event.dataTransfer.effectAllowed = "move";
+}
+
+function onDragOver(event) {
+  event.preventDefault();
+}
+
+function onDrop(event) {
+  event.preventDefault();
+  const folderId = event.currentTarget.dataset.folderId;
+
+  fetch("{% url 'move_document' %}", {
+    method: "POST",
+    headers: {
+      "X-CSRFToken": "{{ csrf_token }}",
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: new URLSearchParams({
+      doc_id: draggedDocId,
+      folder_id: folderId,
+    }),
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data.success) {
+      location.reload();
+    }
+  });
+}
+</script>
+{% endblock %}
