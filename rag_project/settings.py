@@ -2,6 +2,7 @@ from pathlib import Path
 import os
 import certifi
 import ssl
+import dj_database_url
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -109,6 +110,17 @@ WSGI_APPLICATION = "rag_project.wsgi.application"
 # =========================
 # DATABASE (SQLite for now)
 # =========================
+
+
+
+DATABASES = {
+    "default": dj_database_url.config(
+        default=os.getenv("DATABASE_URL"),
+        conn_max_age=600,
+        ssl_require=True,
+    )
+}
+
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
