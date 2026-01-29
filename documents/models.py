@@ -3,6 +3,7 @@ from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.contrib.postgres.indexes import GinIndex
 from django.contrib.postgres.search import SearchVectorField
+from django.db.models import Q
 
 from accounts.models import Organization
 
@@ -58,10 +59,6 @@ class Folder(models.Model):
 
     @property
     def full_path(self):
-        """
-        Folder path like:
-        Root / Sub / Child
-        """
         parts = [self.name]
         parent = self.parent
         while parent:
@@ -70,9 +67,6 @@ class Folder(models.Model):
         return " / ".join(reversed(parts))
 
     def is_descendant_of(self, folder):
-        """
-        Prevent circular nesting
-        """
         parent = self.parent
         while parent:
             if parent == folder:
@@ -86,27 +80,21 @@ class Folder(models.Model):
 
     def clean(self):
 
-        # Prevent folder being its own parent
         if self.parent and self.parent == self:
             raise ValidationError("Folder cannot be its own parent.")
 
-        # Prevent circular nesting
         if self.parent and self.parent.is_descendant_of(self):
             raise ValidationError(
                 "Cannot move folder inside its own subfolder."
             )
 
-        # Prevent mixing organizations
         if self.parent and self.parent.organization != self.organization:
             raise ValidationError(
                 "Folder cannot belong to a different organization."
             )
 
-        # Prevent mixing owners
         if self.parent and self.parent.owner != self.owner:
-            raise ValidationError(
-                "Folder owner mismatch."
-            )
+            raise ValidationError("Folder owner mismatch.")
 
     # =========================
     # 📊 HELPERS
@@ -130,7 +118,6 @@ class Folder(models.Model):
 
 class Document(models.Model):
 
-    # Personal owner (nullable for org docs)
     owner = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
@@ -139,7 +126,6 @@ class Document(models.Model):
         blank=True,
     )
 
-    # Organization owner (nullable for personal docs)
     organization = models.ForeignKey(
         Organization,
         on_delete=models.CASCADE,
@@ -172,11 +158,7 @@ class Document(models.Model):
     # =========================
     # 🔐 ACCESS CONTROL
     # =========================
-
-    # Visible to all users inside same organization
     is_public = models.BooleanField(default=False)
-
-    # Uploaded by org admin or platform admin
     uploaded_by_admin = models.BooleanField(default=False)
 
     # =========================
@@ -189,32 +171,31 @@ class Document(models.Model):
             GinIndex(fields=["search_vector"]),
         ]
 
-        # 🚨 Ownership safety
+        # 🚨 Ownership safety (Django 4.2 compatible)
         constraints = [
             models.CheckConstraint(
-                condition=(
+                check=(
                     # Personal document
                     (
-                        models.Q(owner__isnull=False) &
-                        models.Q(organization__isnull=True)
+                        Q(owner__isnull=False) &
+                        Q(organization__isnull=True)
                     )
                     |
                     # Organization document
                     (
-                        models.Q(owner__isnull=True) &
-                        models.Q(organization__isnull=False)
+                        Q(owner__isnull=True) &
+                        Q(organization__isnull=False)
                     )
                     |
-                    # Global system document (superuser)
+                    # Global system document
                     (
-                        models.Q(owner__isnull=True) &
-                        models.Q(organization__isnull=True)
+                        Q(owner__isnull=True) &
+                        Q(organization__isnull=True)
                     )
                 ),
                 name="document_valid_ownership_scope",
             ),
         ]
-
 
     def __str__(self):
         return self.display_name
@@ -228,9 +209,6 @@ class Document(models.Model):
         return self.title or self.file.name.split("/")[-1]
 
     def clean(self):
-        """
-        Prevent folder mismatch between organization and document
-        """
         if self.folder:
             if self.folder.organization != self.organization:
                 raise ValidationError(
@@ -239,11 +217,9 @@ class Document(models.Model):
 
     def save(self, *args, **kwargs):
 
-        # Auto-set title
         if not self.title and self.file:
             self.title = self.file.name.split("/")[-1]
 
-        # Auto-set file size
         if self.file and not self.file_size:
             try:
                 self.file_size = self.file.size
