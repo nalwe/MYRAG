@@ -1,3 +1,7 @@
+from django.db import migrations, models
+
+
+
 migrations.AddConstraint(
     model_name='document',
     constraint=models.CheckConstraint(
