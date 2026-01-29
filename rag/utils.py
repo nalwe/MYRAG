@@ -7,6 +7,15 @@ from accounts.services.token_estimator import estimate_tokens
 
 from .models import ChatSession, ChatMessage
 from .prompts import REPORT_TEMPLATE, STYLE_PRESETS
+from django.conf import settings
+
+
+
+
+def require_openai():
+    if not settings.OPENAI_API_KEY:
+        raise RuntimeError("OPENAI_API_KEY is required to use AI features")
+
 
 
 # =====================================================
