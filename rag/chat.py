@@ -1,5 +1,5 @@
 import os
-from openai import OpenAI
+from django.conf import settings
 
 from accounts.services.quota import consume_tokens, QuotaExceeded
 from accounts.services.token_estimator import estimate_tokens
@@ -11,9 +11,22 @@ from .prompts import (
     LEGAL_SYSTEM_PROMPT,
 )
 
-client = OpenAI(
-    api_key=os.getenv("OPENAI_API_KEY")
-)
+
+# =====================================================
+# 🔐 OPENAI CLIENT (LAZY, RUNTIME ONLY)
+# =====================================================
+
+def require_openai():
+    """
+    Lazily create OpenAI client.
+    NEVER runs during import / collectstatic.
+    """
+    if not settings.OPENAI_API_KEY:
+        raise RuntimeError("OPENAI_API_KEY is required to use AI features")
+
+    from openai import OpenAI
+    return OpenAI(api_key=settings.OPENAI_API_KEY)
+
 
 # =========================
 # LEGAL DOCUMENT DETECTOR
@@ -45,7 +58,6 @@ def is_legal_document(title, text):
 def enforce_quota(*, user, text: str):
     """
     Estimate tokens and deduct from organization quota.
-    Superuser/global usage is ignored automatically.
     """
 
     profile = user.profile
@@ -74,11 +86,12 @@ def chat_with_docs(*, user, query, chunk_results):
     Free-form question answering over retrieved chunks
     """
 
-    # Build context
     context = "\n\n".join(c["text"] for c in chunk_results) if chunk_results else ""
 
     # 🔐 Enforce quota BEFORE calling OpenAI
     enforce_quota(user=user, text=query + context)
+
+    client = require_openai()
 
     response = client.chat.completions.create(
         model="gpt-4o-mini",
@@ -102,7 +115,6 @@ def chat_with_docs(*, user, query, chunk_results):
 
     answer = response.choices[0].message.content.strip()
 
-    # Confidence score
     if chunk_results:
         confidence = round(
             sum(1 / (1 + c.get("score", 0)) for c in chunk_results)
@@ -137,33 +149,24 @@ def chat_with_context(
     question: str,
     legal_mode: str | None,
     style="executive",
-    prepared_by="System Generated"
+    prepared_by="System Generated",
 ):
     """
     Question-aware, statute-safe answering.
-    Enumeration FAILS if structure is not visible.
     """
 
     style_config = STYLE_PRESETS.get(style, STYLE_PRESETS["executive"])
 
-    # =========================
-    # TOKEN SAFETY LIMITS
-    # =========================
     MAX_CHUNKS = 5
     MAX_CHARS_PER_CHUNK = 2000
     MAX_SOURCE_CHARS = 8000
 
-    # =========================
-    # PREPARE SOURCE MATERIAL
-    # =========================
     cleaned_chunks = []
 
     for chunk in retrieved_chunks[:MAX_CHUNKS]:
         text = (chunk.get("text") or "").strip()
-        if not text:
-            continue
-
-        cleaned_chunks.append(text[:MAX_CHARS_PER_CHUNK])
+        if text:
+            cleaned_chunks.append(text[:MAX_CHARS_PER_CHUNK])
 
     source_material = "\n\n".join(cleaned_chunks)[:MAX_SOURCE_CHARS]
 
@@ -173,22 +176,13 @@ def chat_with_context(
         else ""
     )
 
-    # =========================
-    # 🔐 Enforce quota BEFORE calling OpenAI
-    # =========================
     enforce_quota(
         user=user,
         text=question + source_material
     )
 
-    # =========================
-    # ✅ DEFINE LEGAL STATUS
-    # =========================
     is_legal = is_legal_document(document_title, source_material)
 
-    # =========================
-    # ⚖️ LEGAL — ENUMERATION
-    # =========================
     if is_legal and legal_mode == "enumeration":
         system_prompt = (
             "You are a LEGAL EXTRACTION ENGINE.\n"
@@ -211,9 +205,6 @@ STRICT RULES:
 - If sections are NOT visible, you MUST say so
 """
 
-    # =========================
-    # ⚖️ LEGAL — ANALYSIS
-    # =========================
     elif is_legal:
         system_prompt = LEGAL_SYSTEM_PROMPT.strip()
 
@@ -225,9 +216,6 @@ TASK:
 Analyse this law as a statutory instrument.
 """
 
-    # =========================
-    # 📄 NON-LEGAL REPORT
-    # =========================
     else:
         system_prompt = REPORTING_SYSTEM_PROMPT.strip()
 
@@ -250,9 +238,8 @@ Prepared By:
 {prepared_by}
 """
 
-    # =========================
-    # OPENAI CALL
-    # =========================
+    client = require_openai()
+
     response = client.chat.completions.create(
         model="gpt-4o-mini",
         temperature=0.2,

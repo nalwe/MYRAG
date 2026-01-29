@@ -1,16 +1,39 @@
-#from openai import OpenAI
 import numpy as np
-import os
-from openai import OpenAI
+from django.conf import settings
 
-client = OpenAI(
-    api_key=os.getenv("OPENAI_API_KEY")
-)
 
+# =====================================================
+# 🔐 OPENAI CLIENT (LAZY, RUNTIME ONLY)
+# =====================================================
+
+def require_openai():
+    """
+    Lazily create OpenAI client.
+    NEVER runs during import / collectstatic.
+    """
+    if not settings.OPENAI_API_KEY:
+        raise RuntimeError("OPENAI_API_KEY is required to generate embeddings")
+
+    from openai import OpenAI
+    return OpenAI(api_key=settings.OPENAI_API_KEY)
+
+
+# =====================================================
+# 🧠 EMBEDDINGS
+# =====================================================
 
 def embed_texts(texts):
+    """
+    Generate embeddings for a list of texts.
+    """
+    if not texts:
+        return np.array([])
+
+    client = require_openai()
+
     response = client.embeddings.create(
         model="text-embedding-3-small",
         input=texts
     )
-    return np.array([d.embedding for d in response.data])
+
+    return np.array([item.embedding for item in response.data])

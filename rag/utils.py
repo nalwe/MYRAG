@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.postgres.search import SearchQuery, SearchRank
+from django.conf import settings
 
 from documents.models import Document
 from accounts.services.quota import consume_tokens, QuotaExceeded
@@ -7,15 +8,22 @@ from accounts.services.token_estimator import estimate_tokens
 
 from .models import ChatSession, ChatMessage
 from .prompts import REPORT_TEMPLATE, STYLE_PRESETS
-from django.conf import settings
 
 
-
+# =====================================================
+# 🔐 OPENAI CLIENT (LAZY, RUNTIME-ONLY)
+# =====================================================
 
 def require_openai():
+    """
+    Lazily create OpenAI client.
+    This MUST NOT run during Django startup or collectstatic.
+    """
     if not settings.OPENAI_API_KEY:
         raise RuntimeError("OPENAI_API_KEY is required to use AI features")
 
+    from openai import OpenAI
+    return OpenAI(api_key=settings.OPENAI_API_KEY)
 
 
 # =====================================================
@@ -91,7 +99,6 @@ def create_onboarding_chat(user):
 def enforce_quota(*, user, text: str):
     """
     Estimate tokens and deduct from organization quota.
-    Superuser/global usage is ignored automatically.
     """
     profile = user.profile
     organization = profile.organization
@@ -124,7 +131,6 @@ def retrieve_documents_for_chat(
 ):
     """
     Retrieve relevant documents using PostgreSQL full-text search.
-    Enforces organization isolation and global public visibility.
     """
 
     if not question:
@@ -135,26 +141,16 @@ def retrieve_documents_for_chat(
 
     search_query = SearchQuery(question, search_type="websearch")
 
-    # =========================
-    # 🌍 VISIBILITY RULES
-    # =========================
     visibility_filter = (
-        # 🌍 Global public documents (superuser uploads)
         models.Q(
             organization__isnull=True,
             owner__isnull=True,
             is_public=True,
         )
         |
-        # 🏢 Organization documents
-        models.Q(
-            organization=organization
-        )
+        models.Q(organization=organization)
         |
-        # 👤 Personal documents
-        models.Q(
-            owner=user
-        )
+        models.Q(owner=user)
     )
 
     qs = (
@@ -171,13 +167,10 @@ def retrieve_documents_for_chat(
 
 
 # =====================================================
-# ⚖️ LEGAL DOCUMENT DETECTION (STRICT)
+# ⚖️ LEGAL DOCUMENT DETECTION
 # =====================================================
 
 def is_legal_document(title: str, text: str) -> bool:
-    """
-    Identify real statutes ONLY (title-based).
-    """
     if not title:
         return False
 
@@ -201,9 +194,6 @@ def is_legal_document(title: str, text: str) -> bool:
 # =====================================================
 
 def detect_legal_question_mode(question: str) -> str:
-    """
-    Detect whether legal question requires ENUMERATION or ANALYSIS.
-    """
     q = (question or "").lower()
 
     enumeration_triggers = [
@@ -225,7 +215,7 @@ def detect_legal_question_mode(question: str) -> str:
 
 
 # =====================================================
-# 🤖 CHAT WITH CONTEXT (STRICT LEGAL BEHAVIOUR)
+# 🤖 CHAT WITH CONTEXT
 # =====================================================
 
 def chat_with_context(
@@ -239,28 +229,20 @@ def chat_with_context(
 ):
     """
     Question-aware, statute-safe answering.
-    Enumeration FAILS if structure is not visible.
     """
 
     style_config = STYLE_PRESETS.get(style, STYLE_PRESETS["executive"])
 
-    # =========================
-    # TOKEN LIMITS
-    # =========================
     MAX_CHUNKS = 5
     MAX_CHARS_PER_CHUNK = 2000
     MAX_SOURCE_CHARS = 8000
 
-    # =========================
-    # PREPARE SOURCE MATERIAL
-    # =========================
     cleaned_chunks = []
 
     for chunk in retrieved_chunks[:MAX_CHUNKS]:
         text = (chunk.get("text") or "").strip()
-        if not text:
-            continue
-        cleaned_chunks.append(text[:MAX_CHARS_PER_CHUNK])
+        if text:
+            cleaned_chunks.append(text[:MAX_CHARS_PER_CHUNK])
 
     source_material = "\n\n".join(cleaned_chunks)[:MAX_SOURCE_CHARS]
 
@@ -270,22 +252,13 @@ def chat_with_context(
         else ""
     )
 
-    # =========================
-    # 🔐 ENFORCE API QUOTA
-    # =========================
     enforce_quota(
         user=user,
         text=question + source_material
     )
 
-    # =========================
-    # ROUTING
-    # =========================
     is_legal = is_legal_document(document_title, source_material)
 
-    # =========================
-    # ⚖️ LEGAL — ENUMERATION
-    # =========================
     if is_legal and legal_mode == "enumeration":
         system_prompt = (
             "You are a LEGAL EXTRACTION ENGINE.\n"
@@ -308,9 +281,6 @@ STRICT RULES:
 - If sections are NOT visible, you MUST say so
 """
 
-    # =========================
-    # ⚖️ LEGAL — ANALYSIS
-    # =========================
     elif is_legal:
         system_prompt = (
             "You are a LEGAL ANALYSIS ASSISTANT.\n"
@@ -334,9 +304,6 @@ OUTPUT STRUCTURE:
 - Enforcement and Penalties (if any)
 """
 
-    # =========================
-    # 📄 NON-LEGAL REPORT
-    # =========================
     else:
         system_prompt = "You are a PROFESSIONAL REPORTING ASSISTANT."
 
@@ -360,10 +327,9 @@ Prepared By:
 """
 
     # =========================
-    # OPENAI CALL
+    # 🔥 OPENAI CALL (RUNTIME ONLY)
     # =========================
-    from openai import OpenAI
-    client = OpenAI()
+    client = require_openai()
 
     response = client.chat.completions.create(
         model="gpt-4o-mini",

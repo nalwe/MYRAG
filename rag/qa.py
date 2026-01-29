@@ -1,11 +1,25 @@
-
-from openai import OpenAI
-
-client = OpenAI()
+from django.conf import settings
 
 
+# =====================================================
+# 🔐 OPENAI CLIENT (LAZY, RUNTIME ONLY)
+# =====================================================
+
+def require_openai():
+    """
+    Lazily create OpenAI client.
+    Safe for Django startup & collectstatic.
+    """
+    if not settings.OPENAI_API_KEY:
+        raise RuntimeError("OPENAI_API_KEY is required to answer questions")
+
+    from openai import OpenAI
+    return OpenAI(api_key=settings.OPENAI_API_KEY)
 
 
+# =====================================================
+# 🧠 LOW-LEVEL RAG ANSWER
+# =====================================================
 
 def rag_answer_from_chunks(
     *,
@@ -34,7 +48,7 @@ def rag_answer_from_chunks(
     )
 
     # =========================
-    # SYSTEM PROMPT (STRICT + CLEAN OUTPUT)
+    # SYSTEM PROMPT (STRICT)
     # =========================
     system_prompt = (
         "You are a retrieval-augmented assistant.\n"
@@ -67,6 +81,11 @@ INSTRUCTIONS:
 - If listing items (e.g. sections), list them cleanly
 """
 
+    # =========================
+    # OPENAI CALL (RUNTIME ONLY)
+    # =========================
+    client = require_openai()
+
     response = client.chat.completions.create(
         model="gpt-4o-mini",
         temperature=0,
@@ -81,7 +100,6 @@ INSTRUCTIONS:
     # =========================
     # FINAL SANITY CLEANUP
     # =========================
-    # Ensure every answer starts with a heading
     if not answer.startswith("##"):
         answer = "## Answer\n\n" + answer
 
