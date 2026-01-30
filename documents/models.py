@@ -116,8 +116,24 @@ class Folder(models.Model):
 # 📄 DOCUMENT
 # ============================
 
+from django.db import models
+from django.core.exceptions import ValidationError
+from django.db.models import Q
+from django.contrib.postgres.search import SearchVectorField
+from django.contrib.postgres.indexes import GinIndex
+
+from accounts.models import Organization
+from documents.models import Folder
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
+
+
 class Document(models.Model):
 
+    # =========================
+    # OWNERSHIP
+    # =========================
     owner = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
@@ -153,7 +169,12 @@ class Document(models.Model):
     # 🔑 RAG CORE
     # =========================
     extracted_text = models.TextField(blank=True)
-    search_vector = SearchVectorField(null=True)
+
+    # PostgreSQL full-text search field
+    search_vector = SearchVectorField(
+        null=True,
+        editable=False,
+    )
 
     # =========================
     # 🔐 ACCESS CONTROL
@@ -167,8 +188,13 @@ class Document(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        ordering = ["-created_at"]
+
         indexes = [
-            GinIndex(fields=["search_vector"]),
+            GinIndex(
+                fields=["search_vector"],
+                name="document_search_vector_gin",
+            ),
         ]
 
         # 🚨 Ownership safety (Django 4.2 compatible)
@@ -176,45 +202,40 @@ class Document(models.Model):
             models.CheckConstraint(
                 check=(
                     # Personal document
-                    (
-                        Q(owner__isnull=False) &
-                        Q(organization__isnull=True)
-                    )
+                    (Q(owner__isnull=False) & Q(organization__isnull=True))
                     |
                     # Organization document
-                    (
-                        Q(owner__isnull=True) &
-                        Q(organization__isnull=False)
-                    )
+                    (Q(owner__isnull=True) & Q(organization__isnull=False))
                     |
-                    # Global system document
-                    (
-                        Q(owner__isnull=True) &
-                        Q(organization__isnull=True)
-                    )
+                    # Global/system document
+                    (Q(owner__isnull=True) & Q(organization__isnull=True))
                 ),
                 name="document_valid_ownership_scope",
             ),
         ]
 
+    # =========================
+    # STRING / HELPERS
+    # =========================
     def __str__(self):
         return self.display_name
-
-    # =========================
-    # HELPERS
-    # =========================
 
     @property
     def display_name(self):
         return self.title or self.file.name.split("/")[-1]
 
+    # =========================
+    # VALIDATION
+    # =========================
     def clean(self):
-        if self.folder:
-            if self.folder.organization != self.organization:
-                raise ValidationError(
-                    "Document folder must belong to the same organization."
-                )
+        if self.folder and self.folder.organization != self.organization:
+            raise ValidationError(
+                "Document folder must belong to the same organization."
+            )
 
+    # =========================
+    # SAVE HOOK
+    # =========================
     def save(self, *args, **kwargs):
 
         if not self.title and self.file:
@@ -227,6 +248,7 @@ class Document(models.Model):
                 pass
 
         super().save(*args, **kwargs)
+
 
 
 # ============================
