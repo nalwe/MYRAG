@@ -3,6 +3,7 @@ import os
 import certifi
 import ssl
 import dj_database_url
+from urllib.parse import urlparse
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -121,14 +122,19 @@ DATABASES = {
     )
 }
 
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+db_info = urlparse(DATABASE_URL)
+
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": "myrag_db",
-        "USER": "myrag_user",
-        "PASSWORD": "strongpassword123",
-        "HOST": "localhost",
-        "PORT": "5433",
+        "ENGINE": "django.db.backends.postgresql_psycopg2",
+        "NAME": "legal",
+        "USER": db_info.username,
+        "PASSWORD": db_info.password,
+        "HOST": db_info.hostname,
+        "PORT": db_info.port,
+        "OPTIONS": {'sslmode': 'require'},
     }
 }
 
