@@ -4,7 +4,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("documents", "0009_previous_migration"),  # keep your real previous migration
+        ("documents", "0009_document_documents_d_search__05a045_gin"),
     ]
 
     operations = [

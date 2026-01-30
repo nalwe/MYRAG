@@ -15,6 +15,9 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        # --------------------------------------------------
+        # Create DocumentAccess model
+        # --------------------------------------------------
         migrations.CreateModel(
             name='DocumentAccess',
             fields=[
@@ -24,11 +27,17 @@ class Migration(migrations.Migration):
             ],
         ),
 
+        # --------------------------------------------------
+        # Remove old ownership constraint (from 0010)
+        # --------------------------------------------------
         migrations.RemoveConstraint(
             model_name='document',
             name='document_single_owner_or_org',
         ),
 
+        # --------------------------------------------------
+        # Folder ownership changes
+        # --------------------------------------------------
         migrations.AlterUniqueTogether(
             name='folder',
             unique_together=set(),
@@ -51,6 +60,9 @@ class Migration(migrations.Migration):
             unique_together={('name', 'parent', 'owner', 'organization')},
         ),
 
+        # --------------------------------------------------
+        # New ownership constraint (Django 4.2 compatible)
+        # --------------------------------------------------
         migrations.AddConstraint(
             model_name='document',
             constraint=models.CheckConstraint(
@@ -63,6 +75,9 @@ class Migration(migrations.Migration):
             ),
         ),
 
+        # --------------------------------------------------
+        # DocumentAccess relations
+        # --------------------------------------------------
         migrations.AddField(
             model_name='documentaccess',
             name='document',
