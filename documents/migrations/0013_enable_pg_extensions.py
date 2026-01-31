@@ -8,13 +8,17 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        # 1️⃣ Enable required Postgres extension
+
+        # 1️⃣ Enable required PostgreSQL extensions (SAFE & idempotent)
         migrations.RunSQL(
-            sql="CREATE EXTENSION IF NOT EXISTS pg_trgm;",
+            sql="""
+            CREATE EXTENSION IF NOT EXISTS pg_trgm;
+            CREATE EXTENSION IF NOT EXISTS unaccent;
+            """,
             reverse_sql=migrations.RunSQL.noop,
         ),
 
-        # 2️⃣ Backfill search_vector safely
+        # 2️⃣ Backfill search_vector (NO title reference — schema-safe)
         migrations.RunSQL(
             sql="""
             UPDATE documents_document
