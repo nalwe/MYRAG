@@ -117,14 +117,14 @@ class Folder(models.Model):
 # ============================
 
 from django.db import models
+from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.db.models import Q
 from django.contrib.postgres.search import SearchVectorField
 from django.contrib.postgres.indexes import GinIndex
 
-from accounts.models import Organization
+from organizations.models import Organization
 from documents.models import Folder
-from django.contrib.auth import get_user_model
 
 User = get_user_model()
 
@@ -171,6 +171,7 @@ class Document(models.Model):
     extracted_text = models.TextField(blank=True)
 
     # PostgreSQL full-text search field
+    # ⚠️ Do NOT auto-update here — handled by migrations / SQL
     search_vector = SearchVectorField(
         null=True,
         editable=False,
@@ -190,6 +191,7 @@ class Document(models.Model):
     class Meta:
         ordering = ["-created_at"]
 
+        # ✅ GIN index for fast full-text search
         indexes = [
             GinIndex(
                 fields=["search_vector"],
@@ -222,7 +224,7 @@ class Document(models.Model):
 
     @property
     def display_name(self):
-        return self.title or self.file.name.split("/")[-1]
+        return self.title or self.file.name.rsplit("/", 1)[-1]
 
     # =========================
     # VALIDATION
@@ -238,9 +240,11 @@ class Document(models.Model):
     # =========================
     def save(self, *args, **kwargs):
 
+        # Auto-derive title from filename
         if not self.title and self.file:
-            self.title = self.file.name.split("/")[-1]
+            self.title = self.file.name.rsplit("/", 1)[-1]
 
+        # Cache file size
         if self.file and not self.file_size:
             try:
                 self.file_size = self.file.size
@@ -248,7 +252,6 @@ class Document(models.Model):
                 pass
 
         super().save(*args, **kwargs)
-
 
 
 # ============================
