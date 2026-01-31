@@ -5,7 +5,7 @@ from django.contrib.postgres.indexes import GinIndex
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("documents", "0012_enable_pg_trgm"),
+        ("documents", "0013_enable_pg_extensions"),
     ]
 
     operations = [

@@ -4,7 +4,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("documents", "0013_add_gin_indexes"),
+        ("documents", "0012_enable_pg_trgm"),
     ]
 
     operations = [
