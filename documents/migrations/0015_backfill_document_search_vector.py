@@ -9,16 +9,14 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.RunSQL(
-            sql="""
+            """
             UPDATE documents_document
             SET search_vector =
-                setweight(
-                    to_tsvector('english', coalesce(title, '')),
-                    'A'
-                ) ||
-                setweight(
-                    to_tsvector('english', coalesce(extracted_text, '')),
-                    'B'
+                to_tsvector(
+                    'english',
+                    coalesce(title, '') || ' ' ||
+                    coalesce(extracted_text, '') || ' ' ||
+                    coalesce(file::text, '')
                 )
             WHERE search_vector IS NULL;
             """,
