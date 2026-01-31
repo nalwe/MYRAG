@@ -4,12 +4,12 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("documents", "0012_add_search_vector_gin"),
+        ("documents", "0013_add_gin_indexes"),
     ]
 
     operations = [
 
-        # 1️⃣ Enable required PostgreSQL extensions (SAFE & idempotent)
+        # 1️⃣ Enable PostgreSQL extensions (idempotent)
         migrations.RunSQL(
             sql="""
             CREATE EXTENSION IF NOT EXISTS pg_trgm;
@@ -18,7 +18,7 @@ class Migration(migrations.Migration):
             reverse_sql=migrations.RunSQL.noop,
         ),
 
-        # 2️⃣ Backfill search_vector (NO title reference — schema-safe)
+        # 2️⃣ Backfill search_vector
         migrations.RunSQL(
             sql="""
             UPDATE documents_document
