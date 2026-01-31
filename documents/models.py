@@ -117,6 +117,15 @@ class Folder(models.Model):
 # ============================
 
 from django.db import models
+from django.core.exceptions import ValidationError
+from django.db.models import Q
+from django.contrib.postgres.search import SearchVectorField
+from django.contrib.postgres.indexes import GinIndex
+
+from accounts.models import Organization
+from documents.models import Folder
+
+from django.db import models
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.db.models import Q
