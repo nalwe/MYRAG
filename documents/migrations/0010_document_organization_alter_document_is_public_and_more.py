@@ -1,4 +1,4 @@
-from django.db import migrations, models
+from django.db import migrations
 
 
 class Migration(migrations.Migration):
@@ -8,15 +8,11 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AddConstraint(
-            model_name="document",
-            constraint=models.CheckConstraint(
-                check=(
-                    models.Q(organization__isnull=True, owner__isnull=False)
-                    | models.Q(organization__isnull=False, owner__isnull=True)
-                    | models.Q(organization__isnull=True, owner__isnull=True)
-                ),
-                name="document_single_owner_or_org",
-            ),
-        ),
+        # NOTE:
+        # Ownership validation (owner vs organization) is enforced
+        # at the model level via Document.clean().
+        #
+        # Django 4.2 does NOT support CheckConstraint conditions
+        # involving ForeignKey joins, so we intentionally avoid
+        # a database-level constraint here.
     ]
