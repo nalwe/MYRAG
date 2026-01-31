@@ -31,7 +31,7 @@ SECRET_KEY = os.getenv("DJANGO_SECRET_KEY")
 
 DEBUG = False
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = ['lesgolegal.online', 'www.lesgolegal.online', '127.0.0.1', 'localhost',]
 
 
 
