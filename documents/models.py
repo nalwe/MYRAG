@@ -1,11 +1,12 @@
 from django.db import models
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
-from django.contrib.postgres.indexes import GinIndex
-from django.contrib.postgres.search import SearchVectorField
 from django.db.models import Q
 
-from accounts.models import Organization
+from django.contrib.postgres.search import SearchVectorField
+from django.contrib.postgres.indexes import GinIndex
+
+User = get_user_model()
 
 
 # ============================
@@ -18,16 +19,7 @@ class Folder(models.Model):
     owner = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
-        related_name="folders"
-    )
-
-    # Organization scope (NULL = personal folder)
-    organization = models.ForeignKey(
-        Organization,
-        on_delete=models.CASCADE,
         related_name="folders",
-        null=True,
-        blank=True,
     )
 
     parent = models.ForeignKey(
@@ -38,7 +30,7 @@ class Folder(models.Model):
         on_delete=models.CASCADE,
     )
 
-    # 🔓 Public folders (visible inside same organization)
+    # 🔓 Public folders (visible to same owner)
     is_public = models.BooleanField(default=False)
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -46,9 +38,7 @@ class Folder(models.Model):
 
     class Meta:
         ordering = ["name"]
-
-        # Prevent duplicate folder names in same tree + org + owner
-        unique_together = ("name", "parent", "owner", "organization")
+        unique_together = ("name", "parent", "owner")
 
     def __str__(self):
         return self.full_path
@@ -79,18 +69,12 @@ class Folder(models.Model):
     # =========================
 
     def clean(self):
-
         if self.parent and self.parent == self:
             raise ValidationError("Folder cannot be its own parent.")
 
         if self.parent and self.parent.is_descendant_of(self):
             raise ValidationError(
                 "Cannot move folder inside its own subfolder."
-            )
-
-        if self.parent and self.parent.organization != self.organization:
-            raise ValidationError(
-                "Folder cannot belong to a different organization."
             )
 
         if self.parent and self.parent.owner != self.owner:
@@ -116,28 +100,6 @@ class Folder(models.Model):
 # 📄 DOCUMENT
 # ============================
 
-from django.db import models
-from django.core.exceptions import ValidationError
-from django.db.models import Q
-from django.contrib.postgres.search import SearchVectorField
-from django.contrib.postgres.indexes import GinIndex
-
-from accounts.models import Organization
-from documents.models import Folder
-
-from django.db import models
-from django.contrib.auth import get_user_model
-from django.core.exceptions import ValidationError
-from django.db.models import Q
-from django.contrib.postgres.search import SearchVectorField
-from django.contrib.postgres.indexes import GinIndex
-
-from organizations.models import Organization
-from documents.models import Folder
-
-User = get_user_model()
-
-
 class Document(models.Model):
 
     # =========================
@@ -147,16 +109,6 @@ class Document(models.Model):
         User,
         on_delete=models.CASCADE,
         related_name="documents",
-        null=True,
-        blank=True,
-    )
-
-    organization = models.ForeignKey(
-        Organization,
-        on_delete=models.CASCADE,
-        related_name="documents",
-        null=True,
-        blank=True,
     )
 
     folder = models.ForeignKey(
@@ -180,7 +132,6 @@ class Document(models.Model):
     extracted_text = models.TextField(blank=True)
 
     # PostgreSQL full-text search field
-    # ⚠️ Do NOT auto-update here — handled by migrations / SQL
     search_vector = SearchVectorField(
         null=True,
         editable=False,
@@ -200,7 +151,6 @@ class Document(models.Model):
     class Meta:
         ordering = ["-created_at"]
 
-        # ✅ GIN index for fast full-text search
         indexes = [
             GinIndex(
                 fields=["search_vector"],
@@ -208,20 +158,10 @@ class Document(models.Model):
             ),
         ]
 
-        # 🚨 Ownership safety (Django 4.2 compatible)
         constraints = [
             models.CheckConstraint(
-                check=(
-                    # Personal document
-                    (Q(owner__isnull=False) & Q(organization__isnull=True))
-                    |
-                    # Organization document
-                    (Q(owner__isnull=True) & Q(organization__isnull=False))
-                    |
-                    # Global/system document
-                    (Q(owner__isnull=True) & Q(organization__isnull=True))
-                ),
-                name="document_valid_ownership_scope",
+                check=Q(owner__isnull=False),
+                name="document_requires_owner",
             ),
         ]
 
@@ -239,9 +179,9 @@ class Document(models.Model):
     # VALIDATION
     # =========================
     def clean(self):
-        if self.folder and self.folder.organization != self.organization:
+        if self.folder and self.folder.owner != self.owner:
             raise ValidationError(
-                "Document folder must belong to the same organization."
+                "Document folder must belong to the same owner."
             )
 
     # =========================
@@ -249,11 +189,9 @@ class Document(models.Model):
     # =========================
     def save(self, *args, **kwargs):
 
-        # Auto-derive title from filename
         if not self.title and self.file:
             self.title = self.file.name.rsplit("/", 1)[-1]
 
-        # Cache file size
         if self.file and not self.file_size:
             try:
                 self.file_size = self.file.size
@@ -272,13 +210,13 @@ class DocumentAccess(models.Model):
     document = models.ForeignKey(
         Document,
         on_delete=models.CASCADE,
-        related_name="collaborators"
+        related_name="collaborators",
     )
 
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
-        related_name="document_access"
+        related_name="document_access",
     )
 
     can_edit = models.BooleanField(default=False)
