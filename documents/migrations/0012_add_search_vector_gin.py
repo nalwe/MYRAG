@@ -9,11 +9,14 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AddIndex(
-            model_name="document",
-            index=GinIndex(
-                fields=["search_vector"],
-                name="document_search_vector_gin",
-            ),
+        GinIndex(
+            name="document_title_trgm_gin",
+            fields=["title"],
+            opclasses=["gin_trgm_ops"],
+        ),
+        GinIndex(
+            name="document_extracted_text_trgm_gin",
+            fields=["extracted_text"],
+            opclasses=["gin_trgm_ops"],
         ),
     ]
