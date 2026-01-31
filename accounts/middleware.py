@@ -12,7 +12,8 @@ class RolePermissionMiddleware:
     - User suspension
     - Organization suspension
     - Role-based route protection
-    Superusers always bypass all restrictions.
+
+    🔓 Superusers ALWAYS bypass everything
     """
 
     def __init__(self, get_response):
@@ -21,7 +22,7 @@ class RolePermissionMiddleware:
     def __call__(self, request):
 
         # -------------------------------------------------
-        # 🌍 Allow anonymous access (login, static, etc)
+        # 🌍 Allow anonymous users (login, static, admin login)
         # -------------------------------------------------
         if not request.user.is_authenticated:
             return self.get_response(request)
@@ -29,9 +30,15 @@ class RolePermissionMiddleware:
         user = request.user
 
         # -------------------------------------------------
-        # 🔓 SUPERUSER BYPASS (ABSOLUTE)
+        # 🔓 ABSOLUTE SUPERUSER BYPASS
         # -------------------------------------------------
         if user.is_superuser:
+            return self.get_response(request)
+
+        # -------------------------------------------------
+        # 🛠 Allow Django Admin URLs explicitly
+        # -------------------------------------------------
+        if request.path.startswith("/admin/"):
             return self.get_response(request)
 
         # -------------------------------------------------
@@ -50,7 +57,7 @@ class RolePermissionMiddleware:
             return render(request, "accounts/suspended.html")
 
         # -------------------------------------------------
-        # 🚫 ORGANIZATION SUSPENDED (Profile-based)
+        # 🚫 ORGANIZATION SUSPENDED
         # -------------------------------------------------
         if profile.organization and not profile.organization.is_active:
             return render(request, "accounts/org_suspended.html")
@@ -58,19 +65,18 @@ class RolePermissionMiddleware:
         # -------------------------------------------------
         # 🔐 ROUTE PERMISSIONS
         # -------------------------------------------------
-        resolver = resolve(request.path)
-        view_name = resolver.view_name or ""
-
-        # ---- SUPERUSER AREA ----
-        if view_name.startswith("admin_"):
-            return HttpResponseForbidden("Superuser access only.")
+        try:
+            resolver = resolve(request.path)
+            view_name = resolver.view_name or ""
+        except Exception:
+            view_name = ""
 
         # ---- ORGANIZATION ADMIN AREA ----
         if view_name.startswith("org_"):
             if not profile.is_org_admin():
                 return HttpResponseForbidden("Organization admin access only.")
 
-        # ---- CHAT / AI AREA (OrganizationMember-based) ----
+        # ---- CHAT / AI AREA ----
         if view_name.startswith("chat_"):
             member = (
                 OrganizationMember.objects
