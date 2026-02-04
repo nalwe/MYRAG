@@ -3,6 +3,9 @@ import os
 import certifi
 import ssl
 
+import dj_database_url
+import os
+
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -107,16 +110,16 @@ WSGI_APPLICATION = "rag_project.wsgi.application"
 # =========================
 # DATABASE (SQLite for now)
 # =========================
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": "myrag_db",
-        "USER": "myrag_user",
-        "PASSWORD": "strongpassword123",
-        "HOST": "localhost",
-        "PORT": "5433",
-    }
-}
+#DATABASES = {
+   # "default": {
+      #  "ENGINE": "django.db.backends.postgresql",
+       # "NAME": "myrag_db",
+       # "USER": "myrag_user",
+       # "PASSWORD": "strongpassword123",
+        #"HOST": "localhost",
+       # "PORT": "5433",
+  #  }
+#}
 
 
 # =========================
@@ -217,6 +220,18 @@ EMAIL_SSL_KEYFILE = None
 EMAIL_SSL_CERTFILE = None
 EMAIL_TIMEOUT = 20
 EMAIL_SSL_CONTEXT = EMAIL_SSL_CONTEXT
+
+
+
+
+DATABASES = {
+    "default": dj_database_url.config(
+        default=os.environ.get("DATABASE_URL"),
+        conn_max_age=600,
+        ssl_require=True,
+    )
+}
+
 
 
 
