@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="max-w-6xl mx-auto p-6">
+
+<h2 class="text-xl font-bold mb-4">System Audit Log</h2>
+
+<table class="w-full bg-white border rounded">
+<thead class="bg-gray-100">
+<tr>
+  <th class="p-2">Time</th>
+  <th class="p-2">Actor</th>
+  <th class="p-2">Action</th>
+  <th class="p-2">Target</th>
+</tr>
+</thead>
+<tbody>
+{% for log in logs %}
+<tr class="border-t">
+  <td class="p-2 text-sm">{{ log.created_at }}</td>
+  <td class="p-2">{{ log.actor }}</td>
+  <td class="p-2">{{ log.action }}</td>
+  <td class="p-2">{{ log.target }}</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+
+</div>
+{% endblock %}

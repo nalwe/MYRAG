@@ -1,0 +1,227 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-xl mx-auto bg-white p-6 rounded shadow">
+
+  <h2 class="text-xl font-semibold mb-4">📤 Upload Documents</h2>
+
+  <form id="upload-form" method="post" enctype="multipart/form-data" class="space-y-4">
+    {% csrf_token %}
+
+    <!-- DRAG & DROP -->
+    <div
+      id="drop-zone"
+      class="border-2 border-dashed rounded p-6 text-center cursor-pointer bg-gray-50 hover:bg-gray-100"
+    >
+      <p class="text-sm text-gray-600">
+        Drag & drop files here or click to select
+      </p>
+
+      <input
+        type="file"
+        id="file-input"
+        name="files"
+        multiple
+        required
+        hidden
+      >
+    </div>
+
+    <p id="file-list" class="text-xs text-gray-500"></p>
+
+    <!-- FOLDER -->
+    {% if folders %}
+      <div>
+        <label class="block text-sm font-medium mb-1">
+          Folder (optional)
+        </label>
+        <select name="folder" class="border rounded p-2 w-full">
+          <option value="">No Folder</option>
+          {% for folder in folders %}
+            <option value="{{ folder.id }}">{{ folder.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    {% endif %}
+
+    <!-- VISIBILITY -->
+    <div class="border rounded p-3 bg-gray-50">
+      <label class="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          name="is_public"
+          class="rounded border-gray-300"
+        >
+        <span class="font-medium">Make documents public</span>
+      </label>
+      <p class="text-xs text-gray-500 mt-1">
+        Public documents can be viewed and searched by all users.
+      </p>
+    </div>
+
+    <!-- PROGRESS BAR -->
+    <div id="progress-wrapper" class="hidden">
+      <div class="w-full bg-gray-200 rounded">
+        <div
+          id="progress-bar"
+          class="bg-blue-600 text-xs text-white text-center py-1 rounded"
+          style="width: 0%"
+        >
+          0%
+        </div>
+      </div>
+    </div>
+
+    <!-- ACTIONS -->
+    <div class="flex justify-end gap-2 pt-2">
+      <a href="{% url 'document_list' %}"
+         class="px-4 py-2 border rounded text-sm hover:bg-gray-100">
+        Back
+      </a>
+
+      <button
+        type="button"
+        id="cancel-upload"
+        class="hidden px-4 py-2 border border-red-500 text-red-600 rounded text-sm hover:bg-red-50"
+      >
+        Cancel Upload
+      </button>
+
+      <button
+        type="submit"
+        id="upload-btn"
+        class="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
+      >
+        Upload Files
+      </button>
+    </div>
+
+  </form>
+</div>
+
+<!-- TOAST -->
+<div
+  id="toast"
+  class="fixed bottom-5 right-5 hidden bg-green-600 text-white px-4 py-2 rounded shadow"
+></div>
+
+<!-- JS -->
+<script>
+  const dropZone = document.getElementById("drop-zone");
+  const fileInput = document.getElementById("file-input");
+  const fileList = document.getElementById("file-list");
+  const form = document.getElementById("upload-form");
+
+  const progressWrapper = document.getElementById("progress-wrapper");
+  const progressBar = document.getElementById("progress-bar");
+
+  const cancelUploadBtn = document.getElementById("cancel-upload");
+  const uploadBtn = document.getElementById("upload-btn");
+
+  let xhr = null;
+
+  function showToast(message) {
+    const toast = document.getElementById("toast");
+    toast.innerText = message;
+    toast.classList.remove("hidden");
+    setTimeout(() => toast.classList.add("hidden"), 2500);
+  }
+
+  // Drag & Drop
+  dropZone.addEventListener("click", () => fileInput.click());
+
+  dropZone.addEventListener("dragover", e => {
+    e.preventDefault();
+    dropZone.classList.add("bg-blue-50");
+  });
+
+  dropZone.addEventListener("dragleave", () => {
+    dropZone.classList.remove("bg-blue-50");
+  });
+
+  dropZone.addEventListener("drop", e => {
+    e.preventDefault();
+    dropZone.classList.remove("bg-blue-50");
+    fileInput.files = e.dataTransfer.files;
+    showFiles();
+  });
+
+  fileInput.addEventListener("change", showFiles);
+
+  function showFiles() {
+    fileList.innerText = [...fileInput.files].map(f => f.name).join(", ");
+  }
+
+  // =========================
+  // AJAX UPLOAD (FIXED)
+  // =========================
+  form.addEventListener("submit", e => {
+    e.preventDefault();
+
+    xhr = new XMLHttpRequest();
+    const formData = new FormData(form);
+
+    xhr.open("POST", window.location.href); // ✅ FIXED
+    xhr.setRequestHeader("X-Requested-With", "XMLHttpRequest");
+
+    progressWrapper.classList.remove("hidden");
+    cancelUploadBtn.classList.remove("hidden");
+    uploadBtn.disabled = true;
+
+    xhr.upload.onprogress = e => {
+      if (e.lengthComputable) {
+        const percent = Math.round((e.loaded / e.total) * 100);
+        progressBar.style.width = percent + "%";
+        progressBar.innerText = percent + "%";
+      }
+    };
+
+    xhr.onload = () => {
+      if (xhr.status === 200) {
+        try {
+          const response = JSON.parse(xhr.responseText);
+
+          if (response.success) {
+            showToast("Upload successful!");
+            setTimeout(() => {
+              window.location.href = "{% url 'document_list' %}";
+            }, 1200);
+          } else if (response.error) {
+            resetUpload(response.error);
+          }
+        } catch {
+          resetUpload("Unexpected server response");
+        }
+      } else {
+        resetUpload("Upload failed");
+      }
+    };
+
+    xhr.onerror = () => resetUpload("Upload failed");
+
+    xhr.send(formData);
+  });
+
+  // Cancel upload
+  cancelUploadBtn.addEventListener("click", () => {
+    if (xhr) {
+      xhr.abort();
+      resetUpload("Upload cancelled");
+    }
+  });
+
+  function resetUpload(message) {
+    progressWrapper.classList.add("hidden");
+    cancelUploadBtn.classList.add("hidden");
+    uploadBtn.disabled = false;
+
+    progressBar.style.width = "0%";
+    progressBar.innerText = "0%";
+
+    fileInput.value = "";
+    fileList.innerText = "";
+
+    if (message) showToast(message);
+  }
+</script>
+{% endblock %}

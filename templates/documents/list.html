@@ -1,0 +1,237 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Documents{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4">
+
+  <!-- =========================
+       HEADER
+  ========================== -->
+  <div class="flex justify-between items-center mb-4">
+    <h2 class="text-2xl font-semibold">📄 Documents</h2>
+
+    <div class="flex gap-2">
+      {% if request.user.is_staff %}
+      <button onclick="undoFolderMove()"
+              class="px-3 py-2 bg-gray-200 rounded text-sm hover:bg-gray-300">
+        ↩ Undo last move
+      </button>
+      {% endif %}
+
+      {% if request.user.is_staff or request.user.profile.role == "premium" %}
+      <a href="{% url 'document_upload' %}"
+         class="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700">
+        ➕ Upload
+      </a>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+
+    <!-- =========================
+         FOLDER TREE
+    ========================== -->
+    <aside class="border rounded p-3 bg-white">
+      <div class="flex justify-between items-center mb-2">
+        <h3 class="text-sm font-semibold">📁 Folders</h3>
+
+        {% if request.user.is_staff or request.user.profile.role == "premium" %}
+        <button
+          onclick="document.getElementById('new-folder-form').classList.toggle('hidden')"
+          class="text-xs text-blue-600 hover:underline">
+          ➕ New
+        </button>
+        {% endif %}
+      </div>
+
+      {% if request.user.is_staff or request.user.profile.role == "premium" %}
+      <form id="new-folder-form"
+            method="post"
+            action="{% url 'create_folder' %}"
+            class="hidden mb-2 space-y-1">
+        {% csrf_token %}
+        {% if active_folder %}
+          <input type="hidden" name="parent" value="{{ active_folder }}">
+        {% endif %}
+
+        <input type="text"
+               name="name"
+               required
+               placeholder="Folder name"
+               class="w-full px-2 py-1 border rounded text-sm">
+
+        <button type="submit"
+                class="w-full text-sm bg-blue-600 text-white rounded py-1 hover:bg-blue-700">
+          Create
+        </button>
+      </form>
+      {% endif %}
+
+      <ul class="text-sm space-y-1">
+        <li>
+          <a href="{% url 'document_list' %}"
+             class="{% if not active_folder %}font-semibold text-blue-600{% endif %}">
+            All Documents
+          </a>
+        </li>
+
+        {% for folder in folders %}
+          {% if not folder.parent %}
+            {% include "documents/_folder_node.html" with folder=folder %}
+          {% endif %}
+        {% endfor %}
+      </ul>
+    </aside>
+
+    <!-- =========================
+         DOCUMENT LIST
+    ========================== -->
+    <section class="md:col-span-3">
+
+      {% if documents %}
+      <form method="post" action="{% url 'bulk_delete_documents' %}">
+        {% csrf_token %}
+
+        <!-- ACTION BAR -->
+        {% if request.user.is_staff or request.user.profile.role == "premium" %}
+        <div class="flex items-center justify-between mb-3">
+          <label class="flex items-center gap-2 text-sm">
+            <input type="checkbox" id="selectAll">
+            Select all
+          </label>
+
+          <button type="submit"
+                  id="bulk-delete-btn"
+                  disabled
+                  onclick="return confirm('Delete selected documents?')"
+                  class="px-3 py-1.5 text-sm bg-red-600 text-white rounded
+                         hover:bg-red-700 disabled:opacity-50">
+            🗑 Delete selected
+          </button>
+        </div>
+        {% endif %}
+
+        <div class="space-y-3">
+          {% for doc in documents %}
+          <div class="p-4 border rounded flex flex-col md:flex-row md:justify-between gap-3
+                      cursor-move"
+               draggable="{% if request.user.is_staff or doc.owner == request.user %}true{% else %}false{% endif %}"
+               data-document-id="{{ doc.id }}"
+               ondragstart="window.dragDocument(event)">
+
+            <div class="flex gap-3 items-start">
+              {% if request.user.is_staff or doc.owner == request.user %}
+              <input type="checkbox"
+                     name="document_ids"
+                     value="{{ doc.id }}"
+                     class="mt-1 doc-checkbox">
+              {% endif %}
+
+              <div class="flex flex-col">
+                <a href="{% url 'chat_view' %}?doc={{ doc.id }}"
+                   class="rounded px-2 py-1 text-sm
+                   {% if doc.id|stringformat:'s' == active_document|stringformat:'s' %}
+                     bg-blue-100 text-blue-800 font-semibold border-l-4 border-blue-500
+                   {% else %}
+                     hover:bg-gray-100
+                   {% endif %}">
+                  📄 {{ doc.title|default:doc.file.name|cut:"documents/" }}
+                </a>
+
+                {% if request.user.is_staff %}
+                <div class="text-xs text-gray-500 ml-2">
+                  Owner: {{ doc.owner.username }}
+                </div>
+                {% endif %}
+              </div>
+            </div>
+
+            <div class="flex gap-4 text-sm items-center">
+              <a href="{% url 'chat_view' %}?doc={{ doc.id }}"
+                 class="text-green-600 hover:underline font-medium">
+                💬 Chat
+              </a>
+
+              <a href="{% url 'document_preview' doc.id %}"
+                 class="text-blue-600 hover:underline">
+                Preview
+              </a>
+
+              {% if request.user.is_staff or doc.owner == request.user %}
+              <a href="{% url 'document_delete' doc.id %}"
+                 onclick="return confirm('Delete document?')"
+                 class="text-red-600 hover:underline">
+                Delete
+              </a>
+              {% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </form>
+      {% else %}
+        <div class="text-center py-12 border rounded bg-gray-50">
+          <p class="text-gray-500">No documents found.</p>
+        </div>
+      {% endif %}
+    </section>
+
+  </div>
+</div>
+
+<!-- =========================
+     USER FLAGS
+========================== -->
+<script>
+  const userIsStaff = {{ request.user.is_staff|yesno:"true,false" }};
+  const userRole = "{{ request.user.profile.role|default:'' }}";
+</script>
+
+<!-- =========================
+     DRAG + BULK SELECT
+========================== -->
+<script>
+  window.draggedDocumentIds = [];
+
+  window.dragDocument = function (ev) {
+    if (!(userIsStaff || userRole === "premium")) return;
+
+    const checked = document.querySelectorAll(".doc-checkbox:checked");
+    window.draggedDocumentIds = checked.length
+      ? Array.from(checked).map(cb => cb.value)
+      : [ev.currentTarget.dataset.documentId];
+
+    ev.dataTransfer.setData("text/plain", "documents");
+  };
+
+  document.getElementById("selectAll")?.addEventListener("change", e => {
+    document.querySelectorAll(".doc-checkbox")
+      .forEach(cb => cb.checked = e.target.checked);
+    updateDeleteButton();
+  });
+
+  document.querySelectorAll(".doc-checkbox").forEach(cb => {
+    cb.addEventListener("change", updateDeleteButton);
+  });
+
+  function updateDeleteButton() {
+    const btn = document.getElementById("bulk-delete-btn");
+    if (!btn) return;
+    btn.disabled = !document.querySelector(".doc-checkbox:checked");
+  }
+
+  function undoFolderMove() {
+    fetch("/documents/folders/undo-move/", {
+      method: "POST",
+      headers: { "X-CSRFToken": getCSRFToken() }
+    })
+    .then(r => r.json())
+    .then(d => {
+      if (d.success) location.reload();
+      else alert(d.error || "Nothing to undo");
+    });
+  }
+</script>
+{% endblock %}

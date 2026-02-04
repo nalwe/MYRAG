@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Activate Account{% endblock %}
+
+{% block content %}
+<div class="flex items-center justify-center min-h-screen bg-gray-50">
+
+  <div class="w-full max-w-md bg-white shadow rounded p-6">
+
+    <h1 class="text-xl font-semibold mb-2 text-center">
+      Join {{ invite.organization.name }}
+    </h1>
+
+    <p class="text-sm text-gray-500 text-center mb-4">
+      Create your password to activate your account.
+    </p>
+
+    <!-- Messages -->
+    {% if messages %}
+      {% for message in messages %}
+        <div class="mb-3 p-2 rounded text-sm
+             {% if message.tags == 'error' %}
+               bg-red-100 text-red-700
+             {% else %}
+               bg-green-100 text-green-700
+             {% endif %}">
+          {{ message }}
+        </div>
+      {% endfor %}
+    {% endif %}
+
+    <form method="post" class="space-y-4">
+      {% csrf_token %}
+
+      <div>
+        <label class="block text-sm font-medium">
+          Set Password
+        </label>
+        <input
+          type="password"
+          name="password"
+          required
+          class="mt-1 w-full border rounded px-3 py-2"
+        >
+      </div>
+
+      <button
+        type="submit"
+        class="w-full bg-green-600 text-white py-2 rounded hover:bg-green-700">
+        Activate Account →
+      </button>
+    </form>
+
+  </div>
+
+</div>
+{% endblock %}
