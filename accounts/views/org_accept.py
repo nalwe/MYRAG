@@ -3,7 +3,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.contrib import messages
 from django.utils import timezone
 
-from accounts.models import OrganizationInvite, OrganizationMember
+from accounts.models import OrganizationInvite
 
 
 def accept_invite(request, token):

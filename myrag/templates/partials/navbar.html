@@ -1,0 +1,165 @@
+<!-- NAVBAR -->
+<nav class="bg-white border-b shadow-sm">
+  <div class="max-w-7xl mx-auto px-6">
+    <div class="flex justify-between h-16 items-center">
+
+      <!-- LEFT -->
+      <div class="flex items-center gap-6">
+        <a href="{% if user.is_authenticated and user.is_staff %}
+                    {% url 'accounts:admin_dashboard' %}
+                  {% elif user.is_authenticated %}
+                    {% url 'chat_view' %}
+                  {% else %}
+                    {% url 'document_list' %}
+                  {% endif %}"
+           class="text-lg font-semibold text-blue-600">
+          🧠 LesgoLegal
+        </a>
+
+        <!-- DESKTOP LINKS -->
+        {% if user.is_authenticated %}
+        <div class="hidden md:flex gap-4 text-sm font-medium">
+
+          <!-- CHAT -->
+          <a href="{% url 'chat_view' %}"
+             class="{% if request.resolver_match.url_name == 'chat_view' %}
+                      text-blue-600 border-b-2 border-blue-600
+                    {% else %}
+                      text-gray-700 hover:text-blue-600
+                    {% endif %}">
+            AI-Chat
+          </a>
+
+          <!-- GENERAL DOCUMENTS -->
+          <a href="{% url 'document_list' %}"
+             class="{% if request.resolver_match.url_name == 'document_list' %}
+                      text-blue-600 border-b-2 border-blue-600
+                    {% else %}
+                      text-gray-700 hover:text-blue-600
+                    {% endif %}">
+            Documents
+          </a>
+
+          <!-- MY DOCUMENTS (PREMIUM / ADMIN ONLY) -->
+          {% if user.is_staff or user.profile.role == "premium" %}
+          <a href="{% url 'my_documents' %}"
+             class="{% if request.resolver_match.url_name == 'my_documents' %}
+                      text-blue-600 border-b-2 border-blue-600
+                    {% else %}
+                      text-gray-700 hover:text-blue-600
+                    {% endif %}">
+            My Documents
+          </a>
+          {% endif %}
+
+          <!-- UPLOAD -->
+          {% if user.is_staff or user.profile.role == "premium" %}
+          <a href="{% url 'document_upload' %}"
+             class="{% if request.resolver_match.url_name == 'document_upload' %}
+                      text-blue-600 border-b-2 border-blue-600
+                    {% else %}
+                      text-gray-700 hover:text-blue-600
+                    {% endif %}">
+            Upload
+          </a>
+          {% endif %}
+
+          <!-- ADMIN -->
+          {% if user.is_staff %}
+          <a href="{% url 'admin_user_list' %}"
+             class="{% if request.resolver_match.url_name == 'admin_user_list' %}
+                      text-blue-600 border-b-2 border-blue-600
+                    {% else %}
+                      text-gray-700 hover:text-blue-600
+                    {% endif %}">
+            Users
+          </a>
+
+          <a href="{% url 'admin_dashboard' %}"
+             class="{% if request.resolver_match.url_name == 'admin_dashboard' %}
+                      text-blue-600 border-b-2 border-blue-600
+                    {% else %}
+                      text-gray-700 hover:text-blue-600
+                    {% endif %}">
+            Dashboard
+          </a>
+          {% endif %}
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- RIGHT -->
+      <div class="flex items-center gap-4">
+
+        {% if user.is_authenticated %}
+        <!-- ROLE BADGE -->
+        <span class="hidden sm:inline px-2 py-1 text-xs rounded
+          {% if user.is_staff %}
+            bg-red-100 text-red-700
+          {% elif user.profile.role == 'premium' %}
+            bg-yellow-100 text-yellow-700
+          {% else %}
+            bg-green-100 text-green-700
+          {% endif %}">
+          {% if user.is_staff %}
+            Admin
+          {% else %}
+            {{ user.profile.role|capfirst }}
+          {% endif %}
+        </span>
+
+        <span class="hidden sm:inline text-sm text-gray-600">
+          👤 {{ user.username }}
+        </span>
+        {% endif %}
+
+        <!-- HAMBURGER -->
+        {% if user.is_authenticated %}
+        <button id="menuBtn" class="md:hidden focus:outline-none">
+          <svg class="w-6 h-6 text-gray-700" fill="none" stroke="currentColor"
+               viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
+
+        <a href="{% url 'logout' %}"
+           class="hidden md:inline px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-sm">
+          Logout
+        </a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- MOBILE MENU -->
+  {% if user.is_authenticated %}
+  <div id="mobileMenu"
+       class="md:hidden max-h-0 overflow-hidden transition-all duration-300 border-t bg-white">
+    <div class="px-6 py-4 space-y-3 text-sm">
+
+      <a href="{% url 'chat_view' %}" class="block text-gray-700">AI-Chat</a>
+      <a href="{% url 'document_list' %}" class="block text-gray-700">Documents</a>
+
+      {% if user.is_staff or user.profile.role == "premium" %}
+      <a href="{% url 'my_documents' %}" class="block text-gray-700">
+        My Documents
+      </a>
+
+      <a href="{% url 'document_upload' %}" class="block text-gray-700">
+        Upload
+      </a>
+      {% endif %}
+
+      {% if user.is_staff %}
+      <a href="{% url 'admin_user_list' %}" class="block text-gray-700">Users</a>
+      <a href="{% url 'admin_dashboard' %}" class="block text-gray-700">Admin Dashboard</a>
+      <a href="/admin/" class="block text-gray-700">Django Admin</a>
+      {% endif %}
+
+      <a href="{% url 'logout' %}" class="block text-red-600">Logout</a>
+    </div>
+  </div>
+  {% endif %}
+</nav>

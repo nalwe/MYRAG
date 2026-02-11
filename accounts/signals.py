@@ -1,12 +1,30 @@
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 from django.contrib.auth.models import User
 from django.contrib.auth.signals import user_logged_in
 from django.utils import timezone
 
-from django_otp.plugins.otp_email.models import EmailDevice
+from accounts.models import Profile
+from accounts.utils import sync_user_permissions
 
-from .models import Profile
+
+# ============================
+# 🔒 ENFORCE USERNAME = EMAIL
+# ============================
+
+@receiver(pre_save, sender=User)
+def enforce_username_equals_email(sender, instance, **kwargs):
+    """
+    Ensure username is always the normalized email.
+    This guarantees email-based login works consistently.
+    """
+    if instance.email:
+        normalized_email = instance.email.strip().lower()
+        instance.email = normalized_email
+
+        # Only update username if needed (prevents unnecessary writes)
+        if instance.username != normalized_email:
+            instance.username = normalized_email
 
 
 # ============================
@@ -17,67 +35,37 @@ from .models import Profile
 def create_user_profile(sender, instance, created, **kwargs):
     """
     Automatically create Profile for every new user.
-    Also sync Django superusers into platform superusers.
     """
     if created:
-        role = Profile.ROLE_BASIC
-
-        # If Django superuser → platform superuser
-        if instance.is_superuser:
-            role = Profile.ROLE_SUPERUSER
-
         Profile.objects.create(
             user=instance,
-            role=role
+            role=Profile.ROLE_BASIC,
         )
 
+        sync_user_permissions(instance)
+
 
 # ============================
-# 🔄 SYNC ROLE IF SUPERUSER CHANGES
+# 🔄 SYNC PERMISSIONS ON ROLE CHANGE
 # ============================
 
-@receiver(post_save, sender=User)
-def sync_superuser_role(sender, instance, **kwargs):
+@receiver(post_save, sender=Profile)
+def sync_permissions_on_role_change(sender, instance, **kwargs):
     """
-    If a user is promoted/demoted to Django superuser,
-    keep Profile.role in sync.
+    When Profile.role changes, update Django permissions.
     """
-    try:
-        profile = instance.profile
-    except Profile.DoesNotExist:
-        return
-
-    if instance.is_superuser and profile.role != Profile.ROLE_SUPERUSER:
-        profile.role = Profile.ROLE_SUPERUSER
-        profile.save(update_fields=["role"])
-
-    if not instance.is_superuser and profile.role == Profile.ROLE_SUPERUSER:
-        profile.role = Profile.ROLE_BASIC
-        profile.save(update_fields=["role"])
+    sync_user_permissions(instance.user)
 
 
 # ============================
-# 🔐 ENSURE EMAIL OTP DEVICE
+# 🕒 UPDATE LAST LOGIN TIMESTAMP
 # ============================
 
 @receiver(user_logged_in)
-def ensure_email_device(sender, user, request, **kwargs):
+def update_last_login_timestamp(sender, user, request, **kwargs):
     """
-    Ensure OTP email device exists for the user.
+    Update Profile.last_login_at whenever user logs in.
     """
-    if not user.email:
-        return
-
-    EmailDevice.objects.get_or_create(
-        user=user,
-        name="default",
-        defaults={"email": user.email},
+    Profile.objects.filter(user=user).update(
+        last_login_at=timezone.now()
     )
-
-    # Update last login timestamp
-    try:
-        profile = user.profile
-        profile.last_login_at = timezone.now()
-        profile.save(update_fields=["last_login_at"])
-    except Profile.DoesNotExist:
-        pass

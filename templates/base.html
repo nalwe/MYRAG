@@ -1,217 +1,43 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>{% block title %}RAG Assistant{% endblock %}</title>
+    <meta charset="UTF-8">
+    <title>{% block title %}Myrag{% endblock %}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <!-- Tailwind (OK for now, dev warning is harmless) -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-tailwind.config = {
-  plugins: [tailwindcss.typography],
-}
-</script>
+    {% load static %}
 
+    <!-- ✅ Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Optional: Tailwind config -->
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              primary: '#4f46e5',
+            }
+          }
+        }
+      }
+    </script>
 </head>
 
-<body class="bg-gray-100 text-gray-800">
+<body class="bg-gray-50 min-h-screen">
+  {% include "partials/navbar.html" %}
 
-  {% if user.is_authenticated %}
-    {% include "partials/navbar.html" %}
-  {% endif %}
+    {% if messages %}
+      <div class="max-w-md mx-auto mt-4">
+        {% for message in messages %}
+          <div class="p-3 mb-2 rounded bg-red-100 text-red-700">
+            {{ message }}
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
 
-  <main class="max-w-7xl mx-auto px-6 py-6">
     {% block content %}{% endblock %}
-  </main>
-
-  <!-- =========================
-       TOAST
-  ========================== -->
-  <div id="toast"
-       class="fixed bottom-5 right-5 hidden bg-green-600 text-white px-4 py-2 rounded shadow">
-  </div>
-
-  <script>
-    function showToast(message) {
-      const toast = document.getElementById("toast");
-      toast.innerText = message;
-      toast.classList.remove("hidden");
-      setTimeout(() => toast.classList.add("hidden"), 2500);
-    }
-  </script>
-
-  <!-- HTMX -->
-  <script src="https://unpkg.com/htmx.org@1.9.10"></script>
-
-  <!-- =========================
-       CSRF
-  ========================== -->
-  <script>
-    function getCSRFToken() {
-      return document.cookie
-        .split("; ")
-        .find(row => row.startsWith("csrftoken="))
-        ?.split("=")[1];
-    }
-  </script>
-
-  <!-- =========================
-       FOLDER OPEN STATE (localStorage)
-  ========================== -->
-  <script>
-    function rememberOpenFolder(id, open) {
-      let data = JSON.parse(localStorage.getItem("openFolders") || "[]");
-
-      id = String(id);
-      if (open && !data.includes(id)) data.push(id);
-      if (!open && data.includes(id)) {
-        data = data.filter(x => x !== id);
-      }
-
-      localStorage.setItem("openFolders", JSON.stringify(data));
-    }
-
-    function restoreOpenFolders() {
-      const data = JSON.parse(localStorage.getItem("openFolders") || "[]");
-      data.forEach(id => {
-        const el = document.getElementById(`children-${id}`);
-        if (el) {
-          el.classList.remove("max-h-0", "opacity-0");
-          el.classList.add("max-h-[1000px]", "opacity-100");
-        }
-      });
-    }
-
-    document.addEventListener("DOMContentLoaded", restoreOpenFolders);
-  </script>
-
-  <!-- =========================
-       TREE TOGGLE (ANIMATED)
-  ========================== -->
-  <script>
-    function toggleFolder(folderId) {
-      const el = document.getElementById(`children-${folderId}`);
-      if (!el) return;
-
-      const open = el.classList.contains("max-h-[1000px]");
-
-      if (open) {
-        el.classList.remove("max-h-[1000px]", "opacity-100");
-        el.classList.add("max-h-0", "opacity-0");
-      } else {
-        el.classList.remove("max-h-0", "opacity-0");
-        el.classList.add("max-h-[1000px]", "opacity-100");
-      }
-
-      rememberOpenFolder(folderId, !open);
-    }
-  </script>
-
-  <!-- =========================
-       SUBFOLDER FORM TOGGLE
-  ========================== -->
-  <script>
-    function toggleSubfolderForm(folderId) {
-      const form = document.getElementById(`subfolder-form-${folderId}`);
-      if (!form) return;
-
-      form.classList.toggle("hidden");
-      form.querySelector("input[name='name']")?.focus();
-    }
-  </script>
-
-  <!-- =========================
-       AJAX SUBFOLDER CREATE
-       (SAFE VERSION – reloads)
-  ========================== -->
-  <script>
-    function createSubfolder(e, parentId) {
-      e.preventDefault();
-
-      const form = e.target;
-      const input = form.querySelector("input[name='name']");
-      const name = input.value.trim();
-      if (!name) return;
-
-      fetch("{% url 'create_folder' %}", {
-        method: "POST",
-        headers: {
-          "X-CSRFToken": getCSRFToken(),
-          "Content-Type": "application/x-www-form-urlencoded"
-        },
-        body: new URLSearchParams({
-          name,
-          parent: parentId
-        })
-      }).then(() => {
-        rememberOpenFolder(parentId, true);
-        location.reload();
-      });
-    }
-  </script>
-
-  <!-- =========================
-       GLOBAL DRAG & DROP
-  ========================== -->
-  <script>
-    window.draggedFolderId = null;
-    let hoverExpandTimer = null;
-
-    window.dragFolder = function (e) {
-      const li = e.target.closest("[data-folder-id]");
-      if (!li) return;
-      window.draggedFolderId = li.dataset.folderId;
-      e.dataTransfer.effectAllowed = "move";
-    };
-
-    window.allowDrop = function (e) {
-      e.preventDefault();
-
-      const li = e.target.closest("[data-folder-id]");
-      if (!li) return;
-
-      const folderId = li.dataset.folderId;
-      const children = document.getElementById(`children-${folderId}`);
-      if (!children) return;
-
-      if (!children.classList.contains("max-h-[1000px]")) {
-        clearTimeout(hoverExpandTimer);
-        hoverExpandTimer = setTimeout(() => {
-          toggleFolder(folderId);
-        }, 600);
-      }
-    };
-
-    window.dropFolder = function (e) {
-      e.preventDefault();
-
-      const target = e.target.closest("[data-folder-id]");
-      if (!target) return;
-
-      const targetFolderId = target.dataset.folderId;
-      if (!window.draggedFolderId ||
-          window.draggedFolderId === targetFolderId) return;
-
-      fetch("/folders/move/", {
-        method: "POST",
-        headers: {
-          "X-CSRFToken": getCSRFToken(),
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          folder_id: window.draggedFolderId,
-          new_parent_id: targetFolderId,
-        }),
-      }).then(res => {
-        if (!res.ok) {
-          alert("Move failed");
-          return;
-        }
-        rememberOpenFolder(targetFolderId, true);
-        location.reload();
-      });
-    };
-  </script>
 
 </body>
 </html>

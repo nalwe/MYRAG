@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-xl mx-auto p-6 bg-white rounded shadow">
+
+  <h2 class="text-xl font-semibold mb-4">
+    🔐 Share “{{ doc.display_name }}”
+  </h2>
+
+  <form method="post" class="space-y-4">
+    {% csrf_token %}
+
+    <div>
+      <label class="block text-sm font-medium mb-1">
+        Select user
+      </label>
+      <select name="user_id" class="w-full border rounded px-3 py-2">
+        {% for u in users %}
+          <option value="{{ u.id }}">{{ u.username }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="flex justify-end gap-2">
+      <a href="{% url 'my_documents' %}"
+         class="px-4 py-2 border rounded">
+        Cancel
+      </a>
+      <button
+        type="submit"
+        class="px-4 py-2 bg-blue-600 text-white rounded">
+        Share
+      </button>
+    </div>
+  </form>
+
+</div>
+{% endblock %}

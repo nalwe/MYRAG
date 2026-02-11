@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="max-w-lg mx-auto bg-white p-6 shadow rounded mt-10">
+
+<h2 class="text-xl font-semibold mb-4">Add User to Organization</h2>
+
+<form method="post">
+  {% csrf_token %}
+
+  <label class="block mb-2">Select User</label>
+  <select name="user_id" class="w-full border rounded p-2 mb-4">
+    {% for u in users %}
+      <option value="{{ u.id }}">{{ u.username }}</option>
+    {% endfor %}
+  </select>
+
+  <label class="block mb-2">Role</label>
+  <select name="role" class="w-full border rounded p-2 mb-4">
+    <option value="member">Member</option>
+    <option value="admin">Admin</option>
+  </select>
+
+  <button class="w-full bg-indigo-600 text-white p-2 rounded">
+    Add User
+  </button>
+
+</form>
+
+</div>
+
+{% endblock %}

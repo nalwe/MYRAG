@@ -1,7 +1,7 @@
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render
 from accounts.utils import get_active_org_member
-from accounts.models import OrganizationMember
+#from accounts.models import OrganizationMember
 
 
 @login_required

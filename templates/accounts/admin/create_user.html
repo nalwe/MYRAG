@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="max-w-lg mx-auto px-6 py-6">
+
+  <h2 class="text-2xl font-bold mb-6">
+    Create User
+  </h2>
+
+  <div class="bg-white p-6 rounded-xl shadow border">
+
+    <form method="post">
+      {% csrf_token %}
+
+      <!-- Email -->
+      <div class="mb-4">
+        <label class="block text-sm font-medium">Email</label>
+        <input type="email" name="email"
+               required
+               class="w-full border rounded px-3 py-2">
+      </div>
+
+      <!-- Password -->
+      <div class="mb-4">
+        <label class="block text-sm font-medium">Password</label>
+        <input type="password" name="password"
+               required
+               class="w-full border rounded px-3 py-2">
+      </div>
+
+      <!-- Organization -->
+      <div class="mb-4">
+        <label class="block text-sm font-medium">Organization</label>
+        <select name="organization"
+                class="w-full border rounded px-3 py-2">
+
+          {% for org in organizations %}
+            <option value="{{ org.id }}">{{ org.name }}</option>
+          {% endfor %}
+
+        </select>
+      </div>
+
+      <!-- Platform Role -->
+      <div class="mb-4">
+        <label class="block text-sm font-medium">User Role</label>
+
+        <select name="role"
+                class="w-full border rounded px-3 py-2">
+
+          <option value="org_admin">Organization Admin</option>
+          <option value="premium">Premium User</option>
+          <option value="basic">Basic User</option>
+
+        </select>
+      </div>
+
+      <button class="bg-indigo-600 text-white px-5 py-2 rounded hover:bg-indigo-700">
+        Create User
+      </button>
+
+    </form>
+
+  </div>
+
+</div>
+
+{% endblock %}

@@ -7,6 +7,8 @@
       <div class="flex items-center gap-6">
         <a href="{% if user.is_authenticated and user.is_staff %}
                     {% url 'admin_dashboard' %}
+                  {% elif is_org_admin %}
+                    {% url 'organization_dashboard' %}
                   {% elif user.is_authenticated %}
                     {% url 'chat_view' %}
                   {% else %}
@@ -16,8 +18,8 @@
           🧠 LesgoLegal
         </a>
 
-        <!-- DESKTOP LINKS -->
         {% if user.is_authenticated %}
+        <!-- DESKTOP LINKS -->
         <div class="hidden md:flex gap-4 text-sm font-medium">
 
           <!-- CHAT -->
@@ -30,7 +32,8 @@
             AI-Chat
           </a>
 
-          <!-- GENERAL DOCUMENTS -->
+          <!-- DOCUMENTS -->
+          {% if can_manage_documents %}
           <a href="{% url 'document_list' %}"
              class="{% if request.resolver_match.url_name == 'document_list' %}
                       text-blue-600 border-b-2 border-blue-600
@@ -40,8 +43,6 @@
             Documents
           </a>
 
-          <!-- MY DOCUMENTS (PREMIUM / ADMIN ONLY) -->
-          {% if user.is_staff or user.profile.role == "premium" %}
           <a href="{% url 'my_documents' %}"
              class="{% if request.resolver_match.url_name == 'my_documents' %}
                       text-blue-600 border-b-2 border-blue-600
@@ -50,10 +51,7 @@
                     {% endif %}">
             My Documents
           </a>
-          {% endif %}
 
-          <!-- UPLOAD -->
-          {% if user.is_staff or user.profile.role == "premium" %}
           <a href="{% url 'document_upload' %}"
              class="{% if request.resolver_match.url_name == 'document_upload' %}
                       text-blue-600 border-b-2 border-blue-600
@@ -64,7 +62,19 @@
           </a>
           {% endif %}
 
-          <!-- ADMIN -->
+          <!-- ORG ADMIN -->
+          {% if is_org_admin %}
+          <a href="{% url 'organization_dashboard' %}"
+             class="{% if request.resolver_match.url_name == 'organization_dashboard' %}
+                      text-blue-600 border-b-2 border-blue-600
+                    {% else %}
+                      text-gray-700 hover:text-blue-600
+                    {% endif %}">
+            Org Dashboard
+          </a>
+          {% endif %}
+
+          <!-- SYSTEM ADMIN -->
           {% if user.is_staff %}
           <a href="{% url 'admin_user_list' %}"
              class="{% if request.resolver_match.url_name == 'admin_user_list' %}
@@ -81,9 +91,10 @@
                     {% else %}
                       text-gray-700 hover:text-blue-600
                     {% endif %}">
-            Dashboard
+            Admin
           </a>
           {% endif %}
+
         </div>
         {% endif %}
       </div>
@@ -96,25 +107,29 @@
         <span class="hidden sm:inline px-2 py-1 text-xs rounded
           {% if user.is_staff %}
             bg-red-100 text-red-700
-          {% elif user.profile.role == 'premium' %}
+          {% elif is_org_admin %}
+            bg-blue-100 text-blue-700
+          {% elif can_manage_documents %}
             bg-yellow-100 text-yellow-700
           {% else %}
             bg-green-100 text-green-700
           {% endif %}">
           {% if user.is_staff %}
-            Admin
+            System Admin
+          {% elif is_org_admin %}
+            Org Admin
+          {% elif can_manage_documents %}
+            Premium
           {% else %}
-            {{ user.profile.role|capfirst }}
+            Basic
           {% endif %}
         </span>
 
         <span class="hidden sm:inline text-sm text-gray-600">
           👤 {{ user.username }}
         </span>
-        {% endif %}
 
         <!-- HAMBURGER -->
-        {% if user.is_authenticated %}
         <button id="menuBtn" class="md:hidden focus:outline-none">
           <svg class="w-6 h-6 text-gray-700" fill="none" stroke="currentColor"
                viewBox="0 0 24 24">
@@ -140,21 +155,22 @@
     <div class="px-6 py-4 space-y-3 text-sm">
 
       <a href="{% url 'chat_view' %}" class="block text-gray-700">AI-Chat</a>
+
+      {% if can_manage_documents %}
       <a href="{% url 'document_list' %}" class="block text-gray-700">Documents</a>
+      <a href="{% url 'my_documents' %}" class="block text-gray-700">My Documents</a>
+      <a href="{% url 'document_upload' %}" class="block text-gray-700">Upload</a>
+      {% endif %}
 
-      {% if user.is_staff or user.profile.role == "premium" %}
-      <a href="{% url 'my_documents' %}" class="block text-gray-700">
-        My Documents
-      </a>
-
-      <a href="{% url 'document_upload' %}" class="block text-gray-700">
-        Upload
+      {% if is_org_admin %}
+      <a href="{% url 'organization_dashboard' %}" class="block text-gray-700">
+        Org Dashboard
       </a>
       {% endif %}
 
       {% if user.is_staff %}
       <a href="{% url 'admin_user_list' %}" class="block text-gray-700">Users</a>
-      <a href="{% url 'admin_dashboard' %}" class="block text-gray-700">Admin Dashboard</a>
+      <a href="{% url 'admin_dashboard' %}" class="block text-gray-700">Admin</a>
       <a href="/admin/" class="block text-gray-700">Django Admin</a>
       {% endif %}
 

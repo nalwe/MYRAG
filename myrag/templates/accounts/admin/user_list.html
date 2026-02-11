@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}User Management{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto px-4">
+
+<h2 class="text-2xl font-semibold mb-4">👥 User Management</h2>
+
+<!-- Search + Filters -->
+<form
+    hx-get="{% url 'admin_user_list' %}"
+    hx-target="#user-table"
+    hx-trigger="keyup changed delay:300ms, change"
+    class="flex flex-wrap items-center gap-3 mb-4"
+>
+    <!-- Search Input -->
+    <input
+        type="text"
+        name="q"
+        value="{{ query }}"
+        placeholder="Search username or email..."
+        class="border rounded px-3 py-2 w-64"
+    >
+
+    <!-- Role Filter -->
+    <select name="role" class="border rounded px-3 py-2">
+        <option value="">All Roles</option>
+        <option value="basic" {% if role == "basic" %}selected{% endif %}>Basic</option>
+        <option value="premium" {% if role == "premium" %}selected{% endif %}>Premium</option>
+        <option value="admin" {% if role == "admin" %}selected{% endif %}>Admin</option>
+    </select>
+
+    <!-- Search Button -->
+    <button
+        type="submit"
+        class="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700"
+    >
+        Search
+    </button>
+</form>
+
+
+<!-- Users Table -->
+<div id="user-table">
+    {% include "accounts/admin/_user_table.html" %}
+</div>
+
+</div>
+{% endblock %}

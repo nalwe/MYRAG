@@ -3,8 +3,8 @@ import os
 import certifi
 import ssl
 
-import dj_database_url
-import os
+#import dj_database_url
+
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -30,7 +30,7 @@ SECRET_KEY = os.getenv("DJANGO_SECRET_KEY")
 
 DEBUG = True
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = []
 
 
 
@@ -39,7 +39,6 @@ ALLOWED_HOSTS = ['*']
 # APPLICATIONS
 # =========================
 INSTALLED_APPS = [
-    # Django core
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -48,20 +47,12 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "django.contrib.postgres",
 
-    # Local apps
     "accounts",
     "documents",
     "rag",
     "core",
-    #OTP APPS
-    "django_otp",
-     "django_otp.plugins.otp_totp",
-      "two_factor",
-     # "django_otp",
-    "django_otp.plugins.otp_email",
-   # "two_factor",
-    "two_factor.plugins.email",
 ]
+
 
 # =========================
 # MIDDLEWARE
@@ -89,7 +80,7 @@ ROOT_URLCONF = "rag_project.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [BASE_DIR / "templates"],  # global templates
+        "DIRS": [BASE_DIR / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -97,29 +88,28 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
-                "accounts.context_processors.user_profile",
-                "accounts.context_processors.org_context",
 
+                # 👇 YOURS
+                "accounts.context_processors.user_profile",
+                "accounts.context_processors.permissions_context",
             ],
         },
     },
 ]
+
 
 WSGI_APPLICATION = "rag_project.wsgi.application"
 
 # =========================
 # DATABASE (SQLite for now)
 # =========================
-#DATABASES = {
-   # "default": {
-      #  "ENGINE": "django.db.backends.postgresql",
-       # "NAME": "myrag_db",
-       # "USER": "myrag_user",
-       # "PASSWORD": "strongpassword123",
-        #"HOST": "localhost",
-       # "PORT": "5433",
-  #  }
-#}
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": BASE_DIR / "db.sqlite3",
+    }
+}
+
 
 
 # =========================
@@ -134,13 +124,14 @@ AUTH_PASSWORD_VALIDATORS = [
 
 
 AUTHENTICATION_BACKENDS = [
-    "accounts.auth_backends.OrganizationActiveBackend",
-    "django.contrib.auth.backends.ModelBackend",   # keep default
+    "accounts.auth_backends.EmailAuthBackend",
+    "django.contrib.auth.backends.ModelBackend",
 ]
 
 
+
 LOGIN_URL = "/accounts/login/"
-LOGIN_REDIRECT_URL = "/documents/"
+LOGIN_REDIRECT_URL = "document_list"
 LOGOUT_REDIRECT_URL = "/accounts/login/"
 
 
@@ -185,8 +176,6 @@ FAISS_INDEX_DIR = BASE_DIR / "faiss_indexes"
 EMBEDDING_DIM = 1536  # OpenAI embedding size
 
 
-LOGIN_REDIRECT_URL = "/chat/"
-
 # =========================
 # UPLOAD SETTINGS (FINAL)
 # =========================
@@ -202,35 +191,27 @@ FILE_UPLOAD_HANDLERS = [
 # -------------------------------------------------------------------
 
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+
 EMAIL_HOST = os.getenv("EMAIL_HOST")
 EMAIL_PORT = int(os.getenv("EMAIL_PORT", 587))
 EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS") == "True"
+
 EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
 EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
+
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL")
 
-
-
-EMAIL_SSL_CONTEXT = ssl.create_default_context(cafile=certifi.where())
-
-EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-EMAIL_USE_TLS = True
-EMAIL_USE_SSL = False
-EMAIL_SSL_KEYFILE = None
-EMAIL_SSL_CERTFILE = None
-EMAIL_TIMEOUT = 20
-EMAIL_SSL_CONTEXT = EMAIL_SSL_CONTEXT
+EMAIL_TIMEOUT = 30
 
 
 
-
-DATABASES = {
-    "default": dj_database_url.config(
-        default=os.environ.get("DATABASE_URL"),
-        conn_max_age=600,
-        ssl_require=True,
-    )
-}
+#DATABASES = {
+    #"default": dj_database_url.config(
+      #  default=os.environ.get("DATABASE_URL"),
+      #  conn_max_age=600,
+      #  ssl_require=True,
+   # )
+#}
 
 
 

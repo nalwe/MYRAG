@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% block title %}Document Preview{% endblock %}
+
+{% block content %}
+<div class="container max-w-5xl mx-auto px-4">
+
+  <!-- =========================
+       BREADCRUMBS
+  ========================== -->
+  <nav class="text-sm text-gray-500 mb-4">
+    <a href="{% url 'document_list' %}" class="hover:underline">Documents</a>
+    <span class="mx-2">/</span>
+    <span>{{ document.file.name|cut:"documents/" }}</span>
+  </nav>
+
+  <!-- =========================
+       HEADER
+  ========================== -->
+  <div class="flex justify-between items-center mb-4">
+    <h2 class="text-xl font-semibold">
+      📄 {{ document.file.name|cut:"documents/" }}
+    </h2>
+
+    <div class="flex gap-3 text-sm">
+      <a href="{% url 'document_download' document.id %}"
+         class="px-3 py-1 bg-green-600 text-white rounded">
+        ⬇ Download
+      </a>
+
+      <!-- CHAT WITH THIS DOCUMENT -->
+      <form method="post" action="{% url 'start_chat_with_context' %}">
+        {% csrf_token %}
+        <input type="hidden" name="documents" value="{{ document.id }}">
+        <button
+          type="submit"
+          class="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+        >
+          💬 Chat with this document
+        </button>
+      </form>
+
+      {% if request.user.is_staff or document.owner == request.user %}
+        <a href="{% url 'document_delete' document.id %}"
+           onclick="return confirm('Delete this document?')"
+           class="px-3 py-1 bg-red-600 text-white rounded">
+          🗑 Delete
+        </a>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- =========================
+       VISIBILITY BADGE
+  ========================== -->
+  {% if document.is_public %}
+    <span class="inline-block mb-4 px-2 py-1 text-xs bg-green-100 text-green-700 rounded">
+      Public Document
+    </span>
+  {% else %}
+    <span class="inline-block mb-4 px-2 py-1 text-xs bg-gray-200 text-gray-600 rounded">
+      Private Document
+    </span>
+  {% endif %}
+
+  <!-- =========================
+       PREVIEW CONTENT
+  ========================== -->
+  {% if document.file.url|lower|slice:"-4:" == ".pdf" %}
+
+    <!-- PDF Preview -->
+    <iframe
+      src="{{ document.file.url }}"
+      class="w-full h-[75vh] border rounded bg-white"
+    ></iframe>
+
+  {% elif document.extracted_text %}
+
+    <!-- Text Preview (Highlightable) -->
+    <pre
+      id="document-text"
+      class="p-4 border rounded bg-gray-50 whitespace-pre-wrap text-sm leading-relaxed"
+    >
+{{ document.extracted_text }}
+    </pre>
+
+  {% else %}
+    <p class="text-gray-500">No preview available.</p>
+  {% endif %}
+
+</div>
+
+<!-- =========================
+     HIGHLIGHT SCRIPT
+========================== -->
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const params = new URLSearchParams(window.location.search);
+  const highlight = params.get("highlight");
+
+  if (!highlight) return;
+
+  const container = document.getElementById("document-text");
+  if (!container) return;
+
+  const text = container.innerHTML;
+
+  try {
+    const escaped = highlight.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const regex = new RegExp(escaped, "gi");
+
+    container.innerHTML = text.replace(
+      regex,
+      '<mark class="bg-yellow-200 px-1 rounded">$&</mark>'
+    );
+  } catch (e) {
+    console.warn("Highlight failed:", e);
+  }
+});
+</script>
+
+{% endblock %}

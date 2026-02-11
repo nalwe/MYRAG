@@ -4,13 +4,23 @@
 <div class="max-w-7xl mx-auto px-6 py-6">
 
   <!-- Header -->
-  <div class="mb-8">
-    <h1 class="text-3xl font-bold text-gray-900">
-      Admin Dashboard
-    </h1>
-    <p class="text-gray-600 mt-1">
-      Welcome, {{ request.user.username }} 👋
-    </p>
+  <div class="mb-8 flex items-center justify-between">
+    <div>
+      <h1 class="text-3xl font-bold text-gray-900">
+        Admin Dashboard
+      </h1>
+      <p class="text-gray-600 mt-1">
+        Welcome, {{ request.user.username }} 👋
+      </p>
+    </div>
+
+    {% if request.user.profile.is_org_admin %}
+    <a href="{% url 'org_add_user' %}"
+       class="px-4 py-2 bg-blue-600 text-white rounded-lg
+              hover:bg-blue-700 transition">
+      ➕ Add User
+    </a>
+    {% endif %}
   </div>
 
   <!-- =========================
@@ -39,29 +49,77 @@
   </div>
 
   <!-- =========================
-       ORGANIZATION ADMIN SHORTCUT
+       ORGANIZATION ADMIN SECTION
   ========================== -->
   {% if request.user.profile.is_org_admin %}
   <div class="mb-12">
-    <h2 class="text-lg font-semibold text-gray-900 mb-4">
-      🏢 Organization
-    </h2>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-
-      <a href="{% url 'organization_dashboard' %}"
-         class="p-5 bg-white shadow-sm rounded-xl border border-blue-200
-                hover:bg-blue-50 transition">
-        📊 Organization Dashboard
-      </a>
-
-      <a href="{% url 'org_branding' %}"
-         class="p-5 bg-white shadow-sm rounded-xl border border-blue-200
-                hover:bg-blue-50 transition">
-        🎨 Organization Branding
-      </a>
-
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-lg font-semibold text-gray-900">
+        🏢 {{ request.user.profile.organization.name }} Members
+      </h2>
     </div>
+
+    <div class="overflow-x-auto bg-white border rounded-xl shadow-sm">
+      <table class="w-full">
+        <thead class="bg-gray-50">
+          <tr>
+            <th class="px-4 py-3 text-left text-sm font-medium text-gray-600">Email</th>
+            <th class="px-4 py-3 text-center text-sm font-medium text-gray-600">Role</th>
+            <th class="px-4 py-3 text-center text-sm font-medium text-gray-600">Status</th>
+            <th class="px-4 py-3 text-center text-sm font-medium text-gray-600">Action</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y">
+          {% for member in members %}
+          <tr>
+            <td class="px-4 py-3">
+              {{ member.user.email|default:member.user.username }}
+            </td>
+
+            <td class="px-4 py-3 text-center">
+              {{ member.get_role_display }}
+            </td>
+
+            <td class="px-4 py-3 text-center">
+              {% if member.is_active %}
+                <span class="text-green-600 font-medium">Active</span>
+              {% else %}
+                <span class="text-red-600 font-medium">Inactive</span>
+              {% endif %}
+            </td>
+
+            <td class="px-4 py-3 text-center">
+              {% if member.user != request.user %}
+              <form method="post"
+                    action="{% url 'org_toggle_user' member.id %}">
+                {% csrf_token %}
+                <button
+                  class="text-sm font-medium
+                         {% if member.is_active %}
+                           text-red-600 hover:underline
+                         {% else %}
+                           text-green-600 hover:underline
+                         {% endif %}">
+                  {% if member.is_active %}Deactivate{% else %}Activate{% endif %}
+                </button>
+              </form>
+              {% else %}
+                <span class="text-xs text-gray-400">You</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="4" class="px-4 py-6 text-center text-gray-500">
+              No users found in this organization.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
   </div>
   {% endif %}
 

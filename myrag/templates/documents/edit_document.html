@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-xl mx-auto p-6 bg-white rounded shadow">
+
+  <h2 class="text-xl font-semibold mb-4">✏️ Edit Document</h2>
+
+  <form method="post" class="space-y-4">
+    {% csrf_token %}
+
+    <div>
+      <label class="block text-sm font-medium mb-1">Title</label>
+      <input
+        type="text"
+        name="title"
+        value="{{ doc.title }}"
+        class="w-full border rounded px-3 py-2"
+      >
+    </div>
+
+    <div>
+      <label class="block text-sm font-medium mb-1">Folder</label>
+      <select name="folder" class="w-full border rounded px-3 py-2">
+        <option value="">No Folder</option>
+        {% for folder in folders %}
+          <option value="{{ folder.id }}"
+            {% if doc.folder_id == folder.id %}selected{% endif %}>
+            {{ folder.name }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="flex justify-end gap-2">
+      <a href="{% url 'my_documents' %}"
+         class="px-4 py-2 border rounded">
+        Cancel
+      </a>
+      <button
+        type="submit"
+        class="px-4 py-2 bg-blue-600 text-white rounded">
+        Save
+      </button>
+    </div>
+  </form>
+
+</div>
+{% endblock %}

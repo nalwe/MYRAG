@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="max-w-xl mx-auto px-6 py-6">
+
+  <h2 class="text-2xl font-bold mb-2">
+    Bulk Add Users
+  </h2>
+
+  <p class="text-sm text-gray-500 mb-6">
+    Upload CSV file to add users to {{ organization.name }}
+  </p>
+
+  <div class="bg-white p-6 rounded-xl shadow border">
+
+    <form method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+
+      <input type="file"
+             name="file"
+             accept=".csv"
+             class="mb-4">
+
+      <button
+        type="submit"
+        class="bg-indigo-600 text-white px-5 py-2 rounded hover:bg-indigo-700">
+        Upload CSV
+      </button>
+
+    </form>
+
+  </div>
+
+  <!-- CSV Format Help -->
+  <div class="mt-6 text-sm text-gray-600">
+    <strong>CSV Format Example:</strong>
+    <pre class="bg-gray-100 p-3 mt-2 rounded">
+email,role
+user1@example.com,member
+user2@example.com,admin
+    </pre>
+  </div>
+
+</div>
+
+{% endblock %}

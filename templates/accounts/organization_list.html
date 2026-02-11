@@ -21,8 +21,9 @@
       placeholder="Search organisation..."
       class="border rounded-lg px-3 py-2 text-sm w-64">
 
-    <select name="status"
-            class="border rounded-lg px-3 py-2 text-sm">
+    <select
+      name="status"
+      class="border rounded-lg px-3 py-2 text-sm">
       <option value="">All Status</option>
       <option value="active" {% if status == "active" %}selected{% endif %}>
         Active
@@ -38,12 +39,11 @@
     </button>
 
     {% if q or status %}
-    <a href="{% url 'organization_list' %}"
-       class="text-sm text-gray-500 underline">
-       Reset
-    </a>
+      <a href="{% url 'organization_list' %}"
+         class="text-sm text-gray-500 underline">
+        Reset
+      </a>
     {% endif %}
-
   </form>
 
   <!-- Table -->
@@ -60,16 +60,12 @@
       </thead>
 
       <tbody class="divide-y divide-gray-100">
-
         {% for org in organizations %}
         <tr class="hover:bg-gray-50">
 
-          <!-- Name -->
-          <td class="p-3 font-medium">
-            <a href="{% url 'organization_usage' org.id %}"
-               class="text-blue-700 hover:underline">
-              {{ org.name }}
-            </a>
+          <!-- Organisation Name (NO DEAD LINK) -->
+          <td class="p-3 font-medium text-gray-900">
+            {{ org.name }}
           </td>
 
           <!-- Status -->
@@ -92,9 +88,9 @@
             {{ org.user_count }}
           </td>
 
-          <!-- ✅ Dashboard Shortcut -->
+          <!-- Dashboard -->
           <td class="p-3 text-center">
-            <a href="{% url 'organization_dashboard' %}?org_id={{ org.id }}"
+            <a href="{% url 'organization_dashboard' %}"
                class="text-blue-600 hover:underline text-sm">
               📊 Open
             </a>
@@ -117,7 +113,6 @@
           </td>
         </tr>
         {% endfor %}
-
       </tbody>
     </table>
   </div>

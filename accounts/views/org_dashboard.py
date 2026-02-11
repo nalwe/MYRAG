@@ -1,27 +1,27 @@
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, get_object_or_404
 from django.http import HttpResponseForbidden
+from django.db.models import Sum, Q
+from django.core.paginator import Paginator
 
-from accounts.models import Organization, OrganizationMember
-from accounts.utils import get_active_org_member
+from accounts.models import Organization, Profile
 from documents.models import Document
-from django.db.models import Sum
 
 
 @login_required
 def organization_dashboard(request):
     user = request.user
+    profile = user.profile
 
-    organizations = []   # for superuser dropdown
+    organizations = []
     organization = None
     mode = None
 
     # =================================================
-    # 🌍 SUPERUSER MODE — CAN VIEW ANY ORG
+    # 🌍 SUPERUSER MODE
     # =================================================
     if user.is_superuser:
         org_id = request.GET.get("org_id")
-
         organizations = Organization.objects.order_by("name")
 
         if org_id:
@@ -47,27 +47,49 @@ def organization_dashboard(request):
     # 🏢 ORG ADMIN MODE
     # =================================================
     else:
-        member = get_active_org_member(user)
-
-        if not member or member.role != "admin":
+        if not profile.is_org_admin or not profile.organization:
             return HttpResponseForbidden("Organization admins only")
 
-        organization = member.organization
+        organization = profile.organization
         mode = "org_admin"
 
     # =================================================
-    # 📊 DASHBOARD DATA
+    # 🔍 SEARCH
     # =================================================
+    search = request.GET.get("q", "").strip()
 
+    members_qs = (
+        Profile.objects
+        .select_related("user")
+        .filter(organization=organization)
+    )
+
+    if search:
+        members_qs = members_qs.filter(
+            Q(user__email__icontains=search) |
+            Q(user__username__icontains=search)
+        )
+
+    members_qs = members_qs.order_by("user__email")
+
+    # =================================================
+    # 📄 PAGINATION
+    # =================================================
+    paginator = Paginator(members_qs, 10)
+    page_number = request.GET.get("page")
+    members = paginator.get_page(page_number)
+
+    # Preview for header/table summary
+    members_preview = members_qs[:5]
+
+    # =================================================
+    # 📊 STATS
+    # =================================================
     stats = {
-        "users": OrganizationMember.objects.filter(
-            organization=organization
-        ).count(),
-
+        "users": members_qs.count(),
         "documents": Document.objects.filter(
             organization=organization
         ).count(),
-
         "storage": (
             Document.objects
             .filter(organization=organization)
@@ -75,6 +97,9 @@ def organization_dashboard(request):
         ),
     }
 
+    # =================================================
+    # 📄 DOCUMENTS
+    # =================================================
     org_documents = (
         Document.objects
         .filter(organization=organization)
@@ -83,18 +108,8 @@ def organization_dashboard(request):
 
     global_documents = (
         Document.objects
-        .filter(
-            is_public=True,
-            organization__isnull=True,
-        )
+        .filter(is_public=True, organization__isnull=True)
         .order_by("-created_at")[:10]
-    )
-
-    members = (
-        OrganizationMember.objects
-        .select_related("user")
-        .filter(organization=organization)
-        .order_by("user__email")
     )
 
     return render(
@@ -102,12 +117,17 @@ def organization_dashboard(request):
         "accounts/org/dashboard.html",
         {
             "organization": organization,
-            "organizations": organizations,   # 👈 for dropdown
+            "organizations": organizations,
             "stats": stats,
-            "members": members,
+            "members": members,              # paginated
+            "members_preview": members_preview,
             "org_documents": org_documents,
             "global_documents": global_documents,
             "mode": mode,
+            "search": search,
             "empty_state": False,
         },
     )
+
+
+

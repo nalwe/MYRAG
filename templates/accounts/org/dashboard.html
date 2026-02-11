@@ -1,31 +1,23 @@
 {% extends "base.html" %}
 {% block content %}
 
-<div class="max-w-7xl mx-auto px-6 py-6 space-y-6">
+<div class="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-8">
 
+  {# SUPERUSER BANNER #}
   {% if mode == "superuser" %}
-  <!-- =========================
-       SUPERUSER BANNER + ORG SWITCHER
-  ========================== -->
-  <div class="flex flex-wrap items-center justify-between gap-3
-              bg-purple-100 border border-purple-300
-              text-purple-800 rounded-lg px-4 py-3">
+  <div class="flex flex-wrap gap-4 items-center justify-between
+              bg-purple-50 border border-purple-200 text-purple-800
+              rounded-xl px-5 py-4">
 
-    <div class="flex items-center gap-2 text-sm font-medium">
-      🛡️ You are viewing this organization as a Superuser
-    </div>
+    <span class="text-sm font-medium">
+      🛡️ Viewing organization as Superuser
+    </span>
 
-    <!-- 🔀 Organization Switcher -->
     <form method="get" class="flex items-center gap-2">
-      <label class="text-xs font-medium">
-        Switch Organization:
-      </label>
-
-      <select
-        name="org_id"
-        onchange="this.form.submit()"
-        class="text-sm border border-purple-300 rounded px-2 py-1 bg-white">
-
+      <label class="text-xs text-purple-700">Switch org:</label>
+      <select name="org_id"
+              onchange="this.form.submit()"
+              class="border border-purple-300 rounded-md px-2 py-1 text-sm">
         {% for org in organizations %}
           <option value="{{ org.id }}"
             {% if org.id == organization.id %}selected{% endif %}>
@@ -35,178 +27,205 @@
       </select>
     </form>
 
-    <div class="flex items-center gap-3 text-sm">
-      <a href="{% url 'admin_dashboard' %}"
-         class="underline hover:text-purple-900">
-        ← Back to Admin Dashboard
-      </a>
-
-      <span class="opacity-50">|</span>
-
-      <span class="text-xs">
-        Org ID: {{ organization.id }}
-      </span>
-    </div>
-
+    <a href="{% url 'admin_dashboard' %}"
+       class="text-sm font-medium text-purple-700 hover:underline">
+      ← Admin Dashboard
+    </a>
   </div>
   {% endif %}
 
-
-  <!-- =========================
-       HEADER
-  ========================== -->
-  <div class="flex flex-wrap items-center justify-between gap-4">
+  {# HEADER #}
+  <div class="bg-white rounded-xl border shadow-sm p-6
+              flex flex-col md:flex-row md:items-center
+              md:justify-between gap-4">
 
     <div>
       <h1 class="text-2xl font-bold text-gray-900">
         {{ organization.name }}
       </h1>
-      <p class="text-sm text-gray-500">
-        {{ organization.tier_label }} · {{ organization.user_count }} users
+      <p class="text-sm text-gray-500 mt-1">
+        {{ stats.users }} users · {{ stats.documents }} documents
       </p>
     </div>
 
     <div class="flex items-center gap-4">
-      {% if organization.logo %}
-        <img src="{{ organization.logo.url }}"
-             class="h-12 w-12 object-contain rounded border">
+      {% if request.user.profile.is_org_admin or request.user.is_superuser %}
+      <a href="{% url 'org_add_user' %}{% if request.user.is_superuser %}?org_id={{ organization.id }}{% endif %}"
+         class="inline-flex items-center gap-2
+                px-4 py-2 bg-blue-600 text-white
+                rounded-lg text-sm font-medium
+                hover:bg-blue-700 transition">
+        ➕ Add User
+      </a>
       {% endif %}
 
       <a href="{% url 'org_branding' %}"
          class="text-sm text-blue-600 hover:underline">
-        Change Logo
+        🎨 Change Branding
       </a>
     </div>
-
   </div>
 
-  <!-- =========================
-       QUICK ACTIONS
-  ========================== -->
-  <div class="flex flex-wrap gap-3">
+  {# USERS TABLE #}
+  <div class="bg-white rounded-xl shadow-sm border overflow-hidden">
 
-    <a href="{% url 'document_upload' %}"
-       class="px-4 py-2 text-sm rounded bg-blue-600 text-white hover:bg-blue-700">
-      ➕ Upload Document
+    <div class="px-5 py-4 flex items-center justify-between
+                border-b bg-gray-50">
+                
+      <h3 class="font-semibold text-gray-800">
+        Organization Users
+      </h3>
+      {# SEARCH BAR #}
+<form method="get" class="px-5 py-4 border-b bg-white flex flex-wrap gap-3 items-center">
+
+  {# Preserve superuser org selection #}
+  {% if mode == "superuser" %}
+    <input type="hidden" name="org_id" value="{{ organization.id }}">
+  {% endif %}
+
+  <input
+    type="text"
+    name="q"
+    value="{{ search }}"
+    placeholder="Search users by email or username…"
+    class="w-full sm:w-72 border rounded-lg px-3 py-2 text-sm
+           focus:outline-none focus:ring-2 focus:ring-blue-500"
+  />
+
+  <button
+    type="submit"
+    class="px-4 py-2 bg-gray-100 text-gray-700
+           rounded-lg text-sm font-medium
+           hover:bg-gray-200 transition">
+    🔍 Search
+  </button>
+
+  {% if search %}
+    <a href="?{% if mode == 'superuser' %}org_id={{ organization.id }}{% endif %}"
+       class="text-sm text-gray-500 hover:underline">
+      Clear
     </a>
+  {% endif %}
 
-    <a href="{% url 'org_invite' %}"
-       class="px-4 py-2 text-sm rounded bg-green-600 text-white hover:bg-green-700">
-      👤 Invite User
-    </a>
+</form>
 
-  </div>
-
-  <!-- =========================
-       API USAGE
-  ========================== -->
-  <div class="bg-white p-4 rounded shadow">
-
-    <div class="flex items-center justify-between mb-2">
-      <h3 class="font-semibold">API Usage</h3>
-      <span class="text-sm text-gray-500">
-        {{ api_used }} / {{ api_limit }} tokens
-      </span>
     </div>
 
-    <div class="w-full bg-gray-200 rounded h-3 overflow-hidden">
-      <div class="bg-blue-600 h-3 rounded transition-all"
-           style="width: {{ api_used|floatformat:0 }}%;">
-      </div>
-    </div>
+    <div class="overflow-x-auto">
+      <table class="min-w-full text-sm">
+        <thead class="bg-gray-100 text-gray-600">
+          <tr>
+            <th class="px-4 py-3 text-left font-medium">User</th>
+            <th class="px-4 py-3 text-center font-medium">Role</th>
+            <th class="px-4 py-3 text-center font-medium">Status</th>
+            <th class="px-4 py-3 text-center font-medium">Last Login</th>
+            <th class="px-4 py-3 text-center font-medium">Actions</th>
+          </tr>
+        </thead>
 
-    <p class="text-xs text-gray-500 mt-1">
-      Remaining: {{ organization.remaining_tokens }} tokens
-    </p>
+        <tbody class="divide-y">
+        {% for m in members %}
+          <tr class="hover:bg-gray-50 transition">
 
-  </div>
+            {# USER #}
+            <td class="px-4 py-3">
+              <div class="font-medium text-gray-900">
+                {{ m.user.username|default:m.user.email }}
+              </div>
+              <div class="text-xs text-gray-400">
+                {{ m.user.email }}
+              </div>
+            </td>
 
-  <!-- =========================
-       DOCUMENTS
-  ========================== -->
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-    <!-- 🏢 Organization Docs -->
-    <div class="bg-white p-4 rounded shadow">
-      <div class="flex items-center justify-between mb-3">
-        <h3 class="font-semibold">Organization Documents</h3>
-        <span class="text-xs text-gray-400">
-          {{ org_documents.count }} total
-        </span>
-      </div>
-
-      {% for doc in org_documents %}
-        <div class="flex justify-between text-sm border-b py-1">
-          <span class="truncate">{{ doc.display_name }}</span>
-
-          {% if doc.is_public %}
-            <span class="text-green-600 text-xs">Public</span>
-          {% else %}
-            <span class="text-gray-400 text-xs">Private</span>
-          {% endif %}
-        </div>
-      {% empty %}
-        <p class="text-sm text-gray-400">No documents yet.</p>
-      {% endfor %}
-    </div>
-
-    <!-- 🌍 Global Docs -->
-    <div class="bg-white p-4 rounded shadow">
-      <div class="flex items-center justify-between mb-3">
-        <h3 class="font-semibold">Global Public Documents</h3>
-        <span class="text-xs text-gray-400">
-          {{ global_documents.count }} available
-        </span>
-      </div>
-
-      {% for doc in global_documents %}
-        <div class="text-sm border-b py-1 truncate">
-          🌍 {{ doc.display_name }}
-        </div>
-      {% empty %}
-        <p class="text-sm text-gray-400">No global documents.</p>
-      {% endfor %}
-    </div>
-
-  </div>
-
-  <!-- =========================
-       USERS
-  ========================== -->
-  <div class="bg-white p-4 rounded shadow overflow-x-auto">
-    <h3 class="font-semibold mb-3">Organization Users</h3>
-
-    <table class="w-full text-sm">
-      <thead>
-        <tr class="text-left border-b">
-          <th class="py-2">Email</th>
-          <th>Role</th>
-          <th>Status</th>
-        </tr>
-      </thead>
-
-      <tbody>
-        {% for member in members %}
-          <tr class="border-b hover:bg-gray-50">
-            <td class="py-2">{{ member.user.email }}</td>
-            <td>{{ member.get_role_display }}</td>
-            <td>
-              {% if member.user.is_active %}
-                <span class="text-green-600">Active</span>
+            {# ROLE #}
+            <td class="px-4 py-3 text-center">
+              {% if m.user != request.user %}
+                {% if request.user.profile.is_org_admin or request.user.is_superuser %}
+                  <form method="post"
+                        action="{% url 'org_change_role' m.id %}">
+                    {% csrf_token %}
+                    <select name="role"
+                            onchange="this.form.submit()"
+                            class="text-xs border rounded px-2 py-1">
+                      <option value="basic" {% if m.role == "basic" %}selected{% endif %}>
+                        Basic
+                      </option>
+                      <option value="premium" {% if m.role == "premium" %}selected{% endif %}>
+                        Premium
+                      </option>
+                    </select>
+                  </form>
+                {% else %}
+                  {{ m.get_role_display }}
+                {% endif %}
               {% else %}
-                <span class="text-red-600">Suspended</span>
+                {{ m.get_role_display }}
               {% endif %}
             </td>
+
+            {# STATUS #}
+            <td class="px-4 py-3 text-center">
+              {% if m.is_active %}
+                <span class="text-green-700 bg-green-100
+                             px-2 py-1 rounded-full text-xs">
+                  Active
+                </span>
+              {% else %}
+                <span class="text-red-700 bg-red-100
+                             px-2 py-1 rounded-full text-xs">
+                  Inactive
+                </span>
+              {% endif %}
+            </td>
+
+            {# LAST LOGIN #}
+            <td class="px-4 py-3 text-center text-xs text-gray-500">
+              {% if m.user.last_login %}
+                {{ m.user.last_login|date:"M d, Y H:i" }}
+              {% else %}
+                —
+              {% endif %}
+            </td>
+
+            {# ACTIONS #}
+            <td class="px-4 py-3 text-center">
+              {% if m.user != request.user %}
+                {% if request.user.profile.is_org_admin or request.user.is_superuser %}
+                  <form method="post"
+                        action="{% url 'org_toggle_user' m.id %}">
+                    {% csrf_token %}
+                    {% if m.is_active %}
+                      <button class="text-xs text-red-600 hover:underline">
+                        Deactivate
+                      </button>
+                    {% else %}
+                      <button class="text-xs text-green-600 hover:underline">
+                        Activate
+                      </button>
+                    {% endif %}
+                  </form>
+                {% else %}
+                  <span class="text-xs text-gray-400">—</span>
+                {% endif %}
+              {% else %}
+                <span class="text-xs text-gray-400">—</span>
+              {% endif %}
+            </td>
+
           </tr>
         {% empty %}
           <tr>
-            <td colspan="3" class="py-4 text-center text-gray-400">
-              No users yet.
+            <td colspan="5"
+                class="px-4 py-6 text-center text-gray-400">
+              No users found in this organization.
             </td>
           </tr>
         {% endfor %}
-      </tbody>
-    </table>
+        </tbody>
+
+      </table>
+    </div>
+
   </div>
 
 </div>

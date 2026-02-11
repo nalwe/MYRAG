@@ -4,46 +4,64 @@
 {% block content %}
 <div class="max-w-6xl mx-auto px-4">
 
-<h2 class="text-2xl font-semibold mb-4">👥 User Management</h2>
+  <h2 class="text-2xl font-semibold mb-4">👥 User Management</h2>
 
-<!-- Search + Filters -->
-<form
-    hx-get="{% url 'admin_user_list' %}"
-    hx-target="#user-table"
-    hx-trigger="keyup changed delay:300ms, change"
-    class="flex flex-wrap items-center gap-3 mb-4"
->
-    <!-- Search Input -->
-    <input
-        type="text"
-        name="q"
-        value="{{ query }}"
-        placeholder="Search username or email..."
-        class="border rounded px-3 py-2 w-64"
-    >
+  <!-- =========================
+       SEARCH + FILTERS
+  ========================== -->
+  <form
+      hx-get="{% url 'admin_user_list' %}"
+      hx-target="#user-table"
+      hx-trigger="keyup changed delay:300ms, change"
+      class="flex flex-wrap items-center gap-3 mb-4"
+  >
 
-    <!-- Role Filter -->
-    <select name="role" class="border rounded px-3 py-2">
-        <option value="">All Roles</option>
-        <option value="basic" {% if role == "basic" %}selected{% endif %}>Basic</option>
-        <option value="premium" {% if role == "premium" %}selected{% endif %}>Premium</option>
-        <option value="admin" {% if role == "admin" %}selected{% endif %}>Admin</option>
-    </select>
+      <!-- Search -->
+      <input
+          type="text"
+          name="q"
+          value="{{ query }}"
+          placeholder="Search username or email..."
+          class="border rounded px-3 py-2 w-64"
+      >
 
-    <!-- Search Button -->
-    <button
-        type="submit"
-        class="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700"
-    >
-        Search
-    </button>
-</form>
+      <!-- Role Filter -->
+      <select name="role" class="border rounded px-3 py-2">
+          <option value="">All Roles</option>
+          <option value="basic" {% if role == "basic" %}selected{% endif %}>Basic</option>
+          <option value="premium" {% if role == "premium" %}selected{% endif %}>Premium</option>
+          <option value="org_admin" {% if role == "org_admin" %}selected{% endif %}>
+              Organization Admin
+          </option>
+      </select>
 
+      <!-- Organization Filter (Superuser only) -->
+      {% if request.user.is_superuser %}
+      <select name="organization" class="border rounded px-3 py-2">
+          <option value="">All Organizations</option>
+          {% for org in organizations %}
+            <option value="{{ org.id }}"
+              {% if org.id|stringformat:"s" == organization_id %}selected{% endif %}>
+              {{ org.name }}
+            </option>
+          {% endfor %}
+      </select>
+      {% endif %}
 
-<!-- Users Table -->
-<div id="user-table">
-    {% include "accounts/admin/_user_table.html" %}
-</div>
+      <button
+          type="submit"
+          class="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700"
+      >
+          Search
+      </button>
+  </form>
+
+  <!-- =========================
+       USERS TABLE
+  ========================== -->
+  <div id="user-table">
+      {% include "accounts/admin/_user_table.html" %}
+  </div>
 
 </div>
 {% endblock %}

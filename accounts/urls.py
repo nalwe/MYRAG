@@ -1,14 +1,29 @@
 from django.urls import path
+from django.contrib.auth import views as auth_views
+from accounts.views.org_password_reset import org_admin_reset_password
+from accounts.views.org_add_user import org_add_user
+from accounts.views.org_toggle_user import org_toggle_user
+from accounts.views.org_change_role import org_change_role
+from accounts.views.org_bulk_add_users import org_bulk_add_users
+from accounts.views.admin_create_user import admin_create_user
+from accounts.views.user_views import create_user
+
+
+
 from accounts.views.org_users import org_user_list
 from accounts.views.org_invite import invite_user
 from accounts.views.org_accept import accept_invite
+
+
+
+
+
 
 # =========================
 # 🔐 AUTH
 # =========================
 from accounts.views.auth_views import (
     login_view,
-    verify_otp,
     logout_view,
 )
 
@@ -22,12 +37,15 @@ from accounts.views.admin_dashboard import (
 )
 
 from accounts.views.organization import (
+    create_org_admin,
+    create_company_user,
+    company_users,
+    company_dashboard,
     create_organization,
     organization_list,
     toggle_org,
-    organization_usage,
-    create_org_admin,
 )
+
 
 from accounts.views.admin_users import (
     admin_user_list,
@@ -35,6 +53,7 @@ from accounts.views.admin_users import (
     admin_toggle_user,
     admin_bulk_deactivate,
 )
+
 
 # =========================
 # 🏢 ORGANIZATION ADMIN
@@ -46,22 +65,60 @@ from accounts.views.org_branding import organization_branding
 urlpatterns = [
 
     # =====================================================
-    # 🔐 AUTHENTICATION (OTP)
+    # 🔐 AUTHENTICATION
     # =====================================================
     path("login/", login_view, name="login"),
-    path("verify-otp/", verify_otp, name="verify_otp"),
     path("logout/", logout_view, name="logout"),
+
+    # =====================================================
+    # 🔑 PASSWORD RESET
+    # =====================================================
+    path(
+        "password-reset/",
+        auth_views.PasswordResetView.as_view(
+            template_name="accounts/password_reset.html"
+        ),
+        name="password_reset",
+    ),
+
+    path(
+        "password-reset/done/",
+        auth_views.PasswordResetDoneView.as_view(
+            template_name="accounts/password_reset_done.html"
+        ),
+        name="password_reset_done",
+    ),
+
+    path(
+        "reset/<uidb64>/<token>/",
+        auth_views.PasswordResetConfirmView.as_view(
+            template_name="accounts/password_reset_confirm.html"
+        ),
+        name="password_reset_confirm",
+    ),
+
+    path(
+        "reset/done/",
+        auth_views.PasswordResetCompleteView.as_view(
+            template_name="accounts/password_reset_complete.html"
+        ),
+        name="password_reset_complete",
+    ),
 
     # =====================================================
     # 🌍 SUPERUSER ADMIN
     # =====================================================
     path("admin/dashboard/", admin_dashboard, name="admin_dashboard"),
 
-    # ---- Organizations ----
-    path("admin/organizations/create/", create_organization, name="create_organization"),
-    path("admin/organizations/", organization_list, name="organization_list"),
-    path("admin/organizations/<int:org_id>/toggle/", toggle_org, name="toggle_org"),
-    path("admin/organizations/<int:org_id>/usage/", organization_usage, name="organization_usage"),
+# ---- Organizations ----
+path("admin/organizations/create/", create_organization, name="create_organization"),
+path("admin/organizations/", organization_list, name="organization_list"),
+path(
+    "admin/organizations/<int:org_id>/toggle/",
+    toggle_org,
+    name="toggle_org",
+),
+    
 
     # ---- Create Org Admin ----
     path("admin/org-admin/create/<int:org_id>/", create_org_admin, name="create_org_admin"),
@@ -81,14 +138,35 @@ urlpatterns = [
     path("org/dashboard/", organization_dashboard, name="organization_dashboard"),
     path("org/branding/", organization_branding, name="org_branding"),
 
-    #INVITE CODE
+    # ---- Org Users ----
     path("org/users/", org_user_list, name="org_user_list"),
     path("org/invite/", invite_user, name="org_invite"),
     path("org/invite/<uuid:token>/", accept_invite, name="accept_invite"),
+
+    path(
+    "org/users/<int:user_id>/reset-password/",
+    org_admin_reset_password,
+    name="org_admin_reset_password",
+),
+
+path(
+    "org/users/add/",
+    org_add_user,
+    name="org_add_user"
+),
+
+path("org/users/bulk-add/", org_bulk_add_users, name="org_bulk_add_users"),
+path("admin/create-user/", admin_create_user, name="admin_create_user"),
+path("users/create/", create_user, name="create_user"),
+path("org/dashboard/", organization_dashboard, name="organization_dashboard"),
+path("org/users/add/", org_add_user, name="org_add_user"),
+path("org/users/<int:profile_id>/toggle/", org_toggle_user, name="org_toggle_user"),
+path("org/users/<int:profile_id>/role/", org_change_role, name="org_change_role"),
+path("admin/users/", admin_user_list, name="admin_user_list")
+
+
+
+
 ]
-
-
-
-
 
 
