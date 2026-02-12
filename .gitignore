@@ -58,3 +58,31 @@ Thumbs.db
 # ======================
 .git/
 .gitignore~
+
+
+# Virtual environment
+venv/
+env/
+.venv/
+
+# Database
+db.sqlite3
+*.sqlite3
+
+# Django media & collected static
+media/
+staticfiles/
+
+# FAISS / vector indexes
+faiss_indexes/
+
+# Environment variables
+.env
+.env.*
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Logs
+*.log
