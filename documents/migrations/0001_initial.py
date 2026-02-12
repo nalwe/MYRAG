@@ -69,6 +69,6 @@ class Migration(migrations.Migration):
         ),
         migrations.AddConstraint(
             model_name='document',
-            constraint=models.CheckConstraint(condition=models.Q(models.Q(('is_public', True), ('organization__isnull', True)), ('is_public', False), _connector='OR'), name='public_docs_have_no_org'),
+            constraint=models.CheckConstraint(check=models.Q(models.Q(('is_public', True), ('organization__isnull', True)), ('is_public', False), _connector='OR'), name='public_docs_have_no_org'),
         ),
     ]
