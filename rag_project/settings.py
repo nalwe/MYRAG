@@ -15,8 +15,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 #open ai settings
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-if not OPENAI_API_KEY:
-    raise RuntimeError("❌ OPENAI_API_KEY is not set")
+
+
 
 
 # =========================
