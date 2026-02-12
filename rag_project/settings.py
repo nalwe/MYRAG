@@ -3,7 +3,7 @@ import os
 import certifi
 import ssl
 
-#import dj_database_url
+import dj_database_url
 
 
 from dotenv import load_dotenv
@@ -107,11 +107,12 @@ WSGI_APPLICATION = "rag_project.wsgi.application"
 # DATABASE (SQLite for now)
 # =========================
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
-    }
+    "default": dj_database_url.config(
+        default=os.getenv("DATABASE_URL", f"sqlite:///{BASE_DIR / 'db.sqlite3'}")
+    )
 }
+
+
 
 
 
