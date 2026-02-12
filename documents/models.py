@@ -139,7 +139,7 @@ class Document(models.Model):
         ]
         constraints = [
             models.CheckConstraint(
-                condition=(
+                check=(
                     models.Q(is_public=True, organization__isnull=True)
                     | models.Q(is_public=False)
                 ),
