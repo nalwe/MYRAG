@@ -1,10 +1,16 @@
-
+import os
 from openai import OpenAI
 
-client = OpenAI()
 
-
-
+def get_openai_client() -> OpenAI:
+    """
+    Lazily initialize OpenAI client.
+    Prevents Django from crashing at import time.
+    """
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        raise RuntimeError("OPENAI_API_KEY is not set")
+    return OpenAI(api_key=api_key)
 
 
 def rag_answer_from_chunks(
@@ -29,7 +35,7 @@ def rag_answer_from_chunks(
     # PREPARE SOURCES
     # =========================
     sources_text = "\n\n".join(
-        f"[S{i+1}]\n{c['text']}"
+        f"[S{i + 1}]\n{c['text']}"
         for i, c in enumerate(chunks)
     )
 
@@ -67,6 +73,11 @@ INSTRUCTIONS:
 - If listing items (e.g. sections), list them cleanly
 """
 
+    # =========================
+    # OPENAI CALL (LAZY INIT)
+    # =========================
+    client = get_openai_client()
+
     response = client.chat.completions.create(
         model="gpt-4o-mini",
         temperature=0,
@@ -81,7 +92,6 @@ INSTRUCTIONS:
     # =========================
     # FINAL SANITY CLEANUP
     # =========================
-    # Ensure every answer starts with a heading
     if not answer.startswith("##"):
         answer = "## Answer\n\n" + answer
 
