@@ -1,33 +1,60 @@
-# Python
+# ======================
+# Django / Python
+# ======================
 __pycache__/
-*.pyc
+*.py[cod]
 *.pyo
+*.pyd
+*.log
+*.pot
 
-# Django
-.env
+# ======================
+# Virtual Environments
+# ======================
+venv/
+env/
+.venv/
+ENV/
+.python-version
+
+# ======================
+# Django specific
+# ======================
+*.sqlite3
 db.sqlite3
 media/
+staticfiles/
+local_settings.py
 
-# Virtual env
-.venv/
-venv/
+# ======================
+# Environment variables
+# ======================
+.env
+.env.*
+!.env.example
 
-# FAISS
-faiss_indexes/*
-!faiss_indexes/.gitkeep
+# ======================
+# Migrations (keep __init__.py)
+# ======================
+**/migrations/*
+!**/migrations/__init__.py
 
-# OS
+# ======================
+# IDEs & Editors
+# ======================
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# ======================
+# OS files
+# ======================
 .DS_Store
 Thumbs.db
-data.json
 
-
-
-
-
-
-
-
-
-
-
+# ======================
+# Git (NEVER commit this)
+# ======================
+.git/
+.gitignore~
