@@ -157,9 +157,9 @@
       <a href="{% url 'chat_view' %}" class="block text-gray-700">AI-Chat</a>
 
       {% if can_manage_documents %}
-      <a href="{% url 'document_list' %}" class="block text-gray-700">Documents</a>
-      <a href="{% url 'my_documents' %}" class="block text-gray-700">My Documents</a>
-      <a href="{% url 'document_upload' %}" class="block text-gray-700">Upload</a>
+      <a href="{% url 'documents:document_list' %}" class="block text-gray-700">Documents</a>
+      <a href="{% url 'documents:my_documents' %}" class="block text-gray-700">My Documents</a>
+      <a href="{% url 'documents:document_upload' %}" class="block text-gray-700">Upload</a>
       {% endif %}
 
       {% if is_org_admin %}
