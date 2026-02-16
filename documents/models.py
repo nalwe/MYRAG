@@ -128,7 +128,7 @@ class Document(models.Model):
     title = models.CharField(max_length=255, blank=True)
 
     extracted_text = models.TextField(blank=True)
-    search_vector = SearchVectorField(null=True)
+    search_vector = SearchVectorField(null=True, blank=True)
 
     is_public = models.BooleanField(default=False)
 
@@ -168,35 +168,39 @@ class Document(models.Model):
 
     
 
+from django.contrib.postgres.search import SearchVector
+
 def save(self, *args, **kwargs):
-    # Auto title
+    is_new = self.pk is None
+
+    # 1️⃣ Auto title
     if not self.title and self.file:
         self.title = self.file.name.split("/")[-1]
 
-    # File size
+    # 2️⃣ File size
     if self.file and not self.file_size:
         try:
             self.file_size = self.file.size
         except Exception:
             pass
 
-    # ✅ Ensure search_vector exists BEFORE validation
-    if self.search_vector is None:
-        text = " ".join(
-            filter(
-                None,
-                [
-                    self.title,
-                    self.extracted_text,
-                ],
-            )
-        )
-        self.search_vector = SearchVector(text)
+    # 3️⃣ IMPORTANT:
+    # Do NOT assign SearchVector before INSERT
+    # Ensure field exists for validation only
+    if is_new and self.search_vector is None:
+        self.search_vector = None  # allow insert to pass
 
-    # Enforce validation always
-    self.full_clean()
+    # 4️⃣ Validate normal fields (safe now)
+    self.full_clean(exclude=["search_vector"])
+
+    # 5️⃣ FIRST SAVE (INSERT)
     super().save(*args, **kwargs)
 
+    # 6️⃣ SECOND SAVE (UPDATE with SearchVector)
+    if self.extracted_text:
+        type(self).objects.filter(pk=self.pk).update(
+            search_vector=SearchVector("extracted_text")
+        )
 
 
 # ============================
