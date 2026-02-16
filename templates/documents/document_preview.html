@@ -40,7 +40,7 @@
       </form>
 
       {% if request.user.is_staff or document.owner == request.user %}
-        <a href="{% url 'document_delete' document.id %}"
+        <a href="{% url 'documents:document_delete' document.id %}"
            onclick="return confirm('Delete this document?')"
            class="px-3 py-1 bg-red-600 text-white rounded">
           🗑 Delete

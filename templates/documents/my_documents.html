@@ -9,7 +9,7 @@
     <h2 class="font-semibold mb-3">📂 Folders</h2>
 
     <!-- ALL DOCUMENTS -->
-    <a href="{% url 'document_list' %}"
+    <a href="{% url 'documents:document_list' %}"
        class="block px-3 py-2 rounded mb-1
        {% if not active_folder %}bg-blue-100{% else %}hover:bg-gray-100{% endif %}">
       📁 All Documents
@@ -37,12 +37,12 @@
       <h1 class="text-2xl font-bold">📄 Documents</h1>
 
       <div class="flex gap-3">
-        <a href="{% url 'my_documents' %}"
+        <a href="{% url 'documents:my_documents' %}"
            class="px-4 py-2 border rounded text-sm hover:bg-gray-100">
           📁 My Documents
         </a>
 
-        <a href="{% url 'document_upload' %}"
+        <a href="{% url 'documents:document_upload' %}"
            class="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700">
           ➕ Upload
         </a>
@@ -112,12 +112,12 @@
                 💬 Chat
               </a>
 
-              <a href="{% url 'document_preview' doc.id %}"
+              <a href="{% url 'documents:document_preview' doc.id %}"
                  class="text-gray-600 hover:underline">
                 👀 Preview
               </a>
 
-              <a href="{% url 'document_download' doc.id %}"
+              <a href="{% url 'documents:document_download' doc.id %}"
                  class="text-gray-600 hover:underline">
                 ⬇️ Download
               </a>
