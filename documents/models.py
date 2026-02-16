@@ -3,6 +3,7 @@ from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.contrib.postgres.indexes import GinIndex
 from django.contrib.postgres.search import SearchVectorField
+from django.contrib.postgres.search import SearchVector
 
 from accounts.models import Organization
 
@@ -165,19 +166,37 @@ class Document(models.Model):
                 "Public documents cannot belong to an organization."
             )
 
-    def save(self, *args, **kwargs):
-        if not self.title and self.file:
-            self.title = self.file.name.split("/")[-1]
+    
 
-        if self.file and not self.file_size:
-            try:
-                self.file_size = self.file.size
-            except Exception:
-                pass
+def save(self, *args, **kwargs):
+    # Auto title
+    if not self.title and self.file:
+        self.title = self.file.name.split("/")[-1]
 
-        # Enforce validation always
-        self.full_clean()
-        super().save(*args, **kwargs)
+    # File size
+    if self.file and not self.file_size:
+        try:
+            self.file_size = self.file.size
+        except Exception:
+            pass
+
+    # ✅ Ensure search_vector exists BEFORE validation
+    if self.search_vector is None:
+        text = " ".join(
+            filter(
+                None,
+                [
+                    self.title,
+                    self.extracted_text,
+                ],
+            )
+        )
+        self.search_vector = SearchVector(text)
+
+    # Enforce validation always
+    self.full_clean()
+    super().save(*args, **kwargs)
+
 
 
 # ============================
