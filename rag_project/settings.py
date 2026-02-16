@@ -84,14 +84,23 @@ TEMPLATES = [
 WSGI_APPLICATION = "rag_project.wsgi.application"
 
 # --------------------------------------------------
-# DATABASE (DigitalOcean Postgres ONLY)
+# DATABASE (DigitalOcean Postgres ONLY and Local host)
 # --------------------------------------------------
-DATABASES = {
-    "default": dj_database_url.config(
-        conn_max_age=600,
-        ssl_require=True,
-    )
-}
+if os.getenv("USE_LOCAL_DB") == "True":
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
+    }
+else:
+    DATABASES = {
+        "default": dj_database_url.config(
+            conn_max_age=600,
+            ssl_require=True,
+        )
+    }
+
 
 # --------------------------------------------------
 # AUTHENTICATION
