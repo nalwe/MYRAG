@@ -2,8 +2,7 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.contrib.postgres.indexes import GinIndex
-from django.contrib.postgres.search import SearchVectorField
-from django.contrib.postgres.search import SearchVector
+from django.contrib.postgres.search import SearchVectorField, SearchVector
 
 from accounts.models import Organization
 
@@ -22,7 +21,6 @@ class Folder(models.Model):
         db_index=True,
     )
 
-    # Organization scope (NULL = personal folder)
     organization = models.ForeignKey(
         Organization,
         on_delete=models.CASCADE,
@@ -98,7 +96,6 @@ class Folder(models.Model):
 # ============================
 
 class Document(models.Model):
-
     uploaded_by = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
@@ -131,7 +128,6 @@ class Document(models.Model):
     search_vector = SearchVectorField(null=True, blank=True)
 
     is_public = models.BooleanField(default=False)
-
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -166,41 +162,29 @@ class Document(models.Model):
                 "Public documents cannot belong to an organization."
             )
 
-    
+    def save(self, *args, **kwargs):
+        # Auto title
+        if not self.title and self.file:
+            self.title = self.file.name.split("/")[-1]
 
-from django.contrib.postgres.search import SearchVector
+        # File size
+        if self.file and not self.file_size:
+            try:
+                self.file_size = self.file.size
+            except Exception:
+                pass
 
-def save(self, *args, **kwargs):
-    is_new = self.pk is None
+        # Validate (exclude search_vector — handled separately)
+        self.full_clean(exclude=["search_vector"])
 
-    # 1️⃣ Auto title
-    if not self.title and self.file:
-        self.title = self.file.name.split("/")[-1]
+        # 1️⃣ INSERT (no expressions allowed)
+        super().save(*args, **kwargs)
 
-    # 2️⃣ File size
-    if self.file and not self.file_size:
-        try:
-            self.file_size = self.file.size
-        except Exception:
-            pass
-
-    # 3️⃣ IMPORTANT:
-    # Do NOT assign SearchVector before INSERT
-    # Ensure field exists for validation only
-    if is_new and self.search_vector is None:
-        self.search_vector = None  # allow insert to pass
-
-    # 4️⃣ Validate normal fields (safe now)
-    self.full_clean(exclude=["search_vector"])
-
-    # 5️⃣ FIRST SAVE (INSERT)
-    super().save(*args, **kwargs)
-
-    # 6️⃣ SECOND SAVE (UPDATE with SearchVector)
-    if self.extracted_text:
-        type(self).objects.filter(pk=self.pk).update(
-            search_vector=SearchVector("extracted_text")
-        )
+        # 2️⃣ UPDATE search vector (allowed)
+        if self.extracted_text:
+            type(self).objects.filter(pk=self.pk).update(
+                search_vector=SearchVector("extracted_text")
+            )
 
 
 # ============================
@@ -208,7 +192,6 @@ def save(self, *args, **kwargs):
 # ============================
 
 class DocumentAccess(models.Model):
-
     document = models.ForeignKey(
         Document,
         on_delete=models.CASCADE,
@@ -223,7 +206,6 @@ class DocumentAccess(models.Model):
     )
 
     can_edit = models.BooleanField(default=False)
-
     granted_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
