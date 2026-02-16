@@ -34,7 +34,7 @@
 
           <!-- DOCUMENTS -->
           {% if can_manage_documents %}
-          <a href="{% url 'document_list' %}"
+          <a href="{% url 'documents:document_list' %}"
              class="{% if request.resolver_match.url_name == 'document_list' %}
                       text-blue-600 border-b-2 border-blue-600
                     {% else %}
