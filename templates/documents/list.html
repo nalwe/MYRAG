@@ -49,7 +49,7 @@
       {% if request.user.is_staff or request.user.profile.role == "premium" %}
       <form id="new-folder-form"
             method="post"
-            action="{% url 'create_folder' %}"
+            action="{% url 'documents:create_folder' %}"
             class="hidden mb-2 space-y-1">
         {% csrf_token %}
         {% if active_folder %}
