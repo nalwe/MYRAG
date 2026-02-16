@@ -160,7 +160,7 @@
               </a>
 
               {% if request.user.is_staff or doc.owner == request.user %}
-              <a href="{% url 'document_delete' doc.id %}"
+              <a href="{% url 'document:delete_document' doc.id %}"
                  onclick="return confirm('Delete document?')"
                  class="text-red-600 hover:underline">
                 Delete
