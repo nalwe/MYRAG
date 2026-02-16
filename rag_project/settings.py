@@ -19,7 +19,7 @@ SECRET_KEY = os.getenv("SECRET_KEY", "unsafe-dev-key")
 
 DEBUG = os.getenv("DEBUG", "False") == "True"
 
-ALLOWED_HOSTS = ["*"]  # tighten in production
+ALLOWED_HOSTS = ["lesgolegal.online", "www.lesgolegal.online",]  # tighten in production
 
 # --------------------------------------------------
 # APPLICATIONS
