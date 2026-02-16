@@ -43,7 +43,7 @@
             Documents
           </a>
 
-          <a href="{% url 'my_documents' %}"
+          <a href="{% url 'documents:my_documents' %}"
              class="{% if request.resolver_match.url_name == 'my_documents' %}
                       text-blue-600 border-b-2 border-blue-600
                     {% else %}
@@ -52,7 +52,7 @@
             My Documents
           </a>
 
-          <a href="{% url 'document_upload' %}"
+          <a href="{% url 'documents:document_upload' %}"
              class="{% if request.resolver_match.url_name == 'document_upload' %}
                       text-blue-600 border-b-2 border-blue-600
                     {% else %}
