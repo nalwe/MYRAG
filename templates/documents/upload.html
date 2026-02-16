@@ -184,7 +184,7 @@
           if (response.success) {
             showToast("Upload successful!");
             setTimeout(() => {
-              window.location.href = "{% url 'document_list' %}";
+              window.location.href = "{% url 'documents:document_list' %}";
             }, 1200);
           } else if (response.error) {
             resetUpload(response.error);
