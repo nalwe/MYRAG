@@ -202,8 +202,8 @@
             </td>
 
             <td class="p-2 text-center">
-              {% if m.role == "owner" %}
-                <span class="bg-purple-100 text-purple-700 px-2 py-0.5 rounded text-xs">Owner</span>
+              {% if m.role == "uploaded_by" %}
+                <span class="bg-purple-100 text-purple-700 px-2 py-0.5 rounded text-xs">uploaded_by</span>
               {% elif m.role == "admin" %}
                 <span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-xs">Admin</span>
               {% else %}

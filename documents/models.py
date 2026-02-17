@@ -14,7 +14,7 @@ from accounts.models import Organization
 class Folder(models.Model):
     name = models.CharField(max_length=255)
 
-    owner = models.ForeignKey(
+    uploaded_by = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
         related_name="folders",
@@ -44,7 +44,7 @@ class Folder(models.Model):
 
     class Meta:
         ordering = ["name"]
-        unique_together = ("name", "parent", "owner", "organization")
+        unique_together = ("name", "parent", "uploaded_by", "organization")
 
     def __str__(self):
         return self.full_path
@@ -65,8 +65,8 @@ class Folder(models.Model):
         if self.parent and self.parent.organization != self.organization:
             raise ValidationError("Folder organization mismatch.")
 
-        if self.parent and self.parent.owner != self.owner:
-            raise ValidationError("Folder owner mismatch.")
+        if self.parent and self.parent.uploaded_by != self.uploaded_by:
+            raise ValidationError("Folder uploaded_by mismatch.")
 
 
 # ============================

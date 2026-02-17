@@ -133,7 +133,7 @@ def retrieve_documents_for_chat(
         # 🌍 Global public documents (superuser uploads)
         models.Q(
             organization__isnull=True,
-            owner__isnull=True,
+            uploaded_by__isnull=True,
             is_public=True,
         )
         |

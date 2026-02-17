@@ -130,12 +130,12 @@ class Profile(models.Model):
 
 class OrganizationMember(models.Model):
 
-    ROLE_OWNER = "owner"
+    ROLE_OWNER = "uploaded_by"
     ROLE_ADMIN = "admin"
     ROLE_MEMBER = "member"
 
     ROLE_CHOICES = (
-        (ROLE_OWNER, "Owner"),
+        (ROLE_OWNER, "uploaded_by"),
         (ROLE_ADMIN, "Admin"),
         (ROLE_MEMBER, "Member"),
     )
@@ -172,7 +172,7 @@ class OrganizationMember(models.Model):
     def __str__(self):
         return f"{self.user.username} → {self.organization.name} ({self.role})"
 
-    def is_owner(self):
+    def is_uploaded_by(self):
         return self.role == self.ROLE_OWNER
 
     def is_admin(self):

@@ -260,7 +260,7 @@ def company_dashboard(request):
 
     global_documents = Document.objects.filter(
         organization__isnull=True,
-        owner__isnull=True,
+        uploaded_by__isnull=True,
         is_public=True,
     ).order_by("-created_at")
 

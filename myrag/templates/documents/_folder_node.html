@@ -50,7 +50,7 @@
     <!-- =========================
          ACTIONS (HOVER)
     ========================== -->
-    {% if request.user.is_staff or folder.owner == request.user %}
+    {% if request.user.is_staff or folder.uploaded_by == request.user %}
     <div class="ml-2 hidden group-hover:flex gap-1 text-xs">
 
       <!-- CREATE SUBFOLDER -->
@@ -90,7 +90,7 @@
   <!-- =========================
        CREATE SUBFOLDER FORM
   ========================== -->
-  {% if request.user.is_staff or folder.owner == request.user %}
+  {% if request.user.is_staff or folder.uploaded_by == request.user %}
   <form id="subfolder-form-{{ folder.id }}"
         onsubmit="createSubfolder(event, '{{ folder.id }}')"
         class="hidden ml-6 mt-1 space-y-1"

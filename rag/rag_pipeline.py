@@ -15,7 +15,7 @@ def rag_answer(
 
     # 1️⃣ Retrieve grounded chunks
     chunks = retrieve_chunks_for_chat(
-        user=document.owner if document else None,
+        user=document.uploaded_by if document else None,
         question=question,
         document=document,
         max_chunks=8,

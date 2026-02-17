@@ -27,7 +27,7 @@ def document_list(request):
     else:
         documents = get_accessible_documents(user)
 
-    # Sidebar folders (Folder.owner is valid)
+    # Sidebar folders (Folder.uploaded_by is valid)
     folders = Folder.objects.filter(uploaded_by=user).order_by("name")
 
     # Folder filter

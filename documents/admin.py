@@ -6,10 +6,10 @@ from documents.models import Document, Folder
 class FolderAdmin(admin.ModelAdmin):
     list_display = (
         "name",
-        "owner",
+        "uploaded_by",
         "created_at",
     )
-    search_fields = ("name", "owner__username")
+    search_fields = ("name", "uploaded_by__username")
     list_filter = ("created_at",)
 
 
