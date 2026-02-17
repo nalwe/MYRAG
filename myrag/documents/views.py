@@ -28,7 +28,7 @@ def document_list(request):
         documents = get_accessible_documents(user)
 
     # Sidebar folders (Folder.owner is valid)
-    folders = Folder.objects.filter(owner=user).order_by("name")
+    folders = Folder.objects.filter(uploaded_by=user).order_by("name")
 
     # Folder filter
     active_folder = None
@@ -158,7 +158,7 @@ def my_documents(request):
     if folder_id:
         documents = documents.filter(folder_id=folder_id)
 
-    folders = Folder.objects.filter(owner=user)
+    folders = Folder.objects.filter(uploaded_by=user)
 
     return render(
         request,
@@ -200,7 +200,7 @@ def create_folder(request):
         if name:
             Folder.objects.create(
                 name=name,
-                owner=request.user
+                uploaded_by=request.user
             )
     return redirect("my_documents")
 
@@ -224,7 +224,7 @@ def move_document(request):
 
     folder = Folder.objects.filter(
         id=folder_id,
-        owner=request.user
+        uploaded_by=request.user
     ).first()
 
     document.folder = folder

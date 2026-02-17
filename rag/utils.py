@@ -144,7 +144,7 @@ def retrieve_documents_for_chat(
         |
         # 👤 Personal documents
         models.Q(
-            owner=user
+            uploaded_by=user
         )
     )
 

@@ -28,7 +28,7 @@ def document_list(request):
     else:
         documents = get_accessible_documents(user)
 
-    folders = Folder.objects.filter(owner=user).order_by("name")
+    folders = Folder.objects.filter(uploaded_by=user).order_by("name")
 
     active_folder = None
     if folder_id:
@@ -130,7 +130,7 @@ def document_upload(request):
     # =========================
     # 📄 SHOW PAGE
     # =========================
-    folders = Folder.objects.filter(owner=user).order_by("name")
+    folders = Folder.objects.filter(uploaded_by=user).order_by("name")
 
     return render(
         request,
@@ -186,7 +186,7 @@ def my_documents(request):
     if folder_id:
         documents = documents.filter(folder_id=folder_id)
 
-    folders = Folder.objects.filter(owner=user)
+    folders = Folder.objects.filter(uploaded_by=user)
 
     return render(
         request,
@@ -226,7 +226,7 @@ def create_folder(request):
     if request.method == "POST":
         name = request.POST.get("name", "").strip()
         if name:
-            Folder.objects.create(name=name, owner=request.user)
+            Folder.objects.create(name=name, uploaded_by=request.user)
 
     return redirect("documents:my_documents")
 
@@ -272,7 +272,7 @@ def rename_folder(request, folder_id):
     folder = get_object_or_404(
         Folder,
         id=folder_id,
-        owner=request.user
+        uploaded_by=request.user
     )
 
     if request.method != "POST":
@@ -286,7 +286,7 @@ def rename_folder(request, folder_id):
 
     # Prevent duplicate folder names at same level
     if Folder.objects.filter(
-        owner=request.user,
+        uploaded_by=request.user,
         parent=folder.parent,
         name=new_name
     ).exclude(id=folder.id).exists():
@@ -305,7 +305,7 @@ def delete_folder(request, folder_id):
     folder = get_object_or_404(
         Folder,
         id=folder_id,
-        owner=request.user
+        uploaded_by=request.user
     )
 
     if request.method != "POST":
@@ -353,7 +353,7 @@ def move_document(request):
     # Validate target folder ownership
     folder = Folder.objects.filter(
         id=folder_id,
-        owner=request.user
+        uploaded_by=request.user
     ).first()
 
     if not folder:

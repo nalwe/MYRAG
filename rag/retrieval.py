@@ -23,7 +23,7 @@ def retrieve_chunks_for_chat(
 
     allowed = Document.objects.filter(
         Q(id=document.id),
-        Q(owner=user) | Q(is_public=True)
+        Q(uploaded_by=user) | Q(is_public=True)
     ).exists()
 
     if not allowed:

@@ -46,7 +46,7 @@ def retrieve_chunks(
     # 🔐 ACCESSIBLE DOCUMENTS
     # -----------------------------------------------------
     docs_qs = Document.objects.filter(
-        Q(is_public=True) | Q(owner=user)
+        Q(is_public=True) | Q(uploaded_by=user)
     )
 
     # Basic users → public only
