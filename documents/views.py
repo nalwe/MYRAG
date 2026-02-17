@@ -4,6 +4,8 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.db.models import Q
 from django.contrib.postgres.search import SearchQuery, SearchRank
+from django.http import JsonResponse
+from django.views.decorators.http import require_http_methods
 
 from documents.models import Document, Folder
 from documents.utils import get_accessible_documents
@@ -66,7 +68,9 @@ def document_list(request):
 # 📤 UPLOAD DOCUMENT
 # =========================
 
+
 @login_required
+@require_http_methods(["GET", "POST"])
 def document_upload(request):
     user = request.user
 
@@ -80,30 +84,60 @@ def document_upload(request):
     if not (user.is_superuser or (member and member.is_admin())):
         return HttpResponseForbidden("Not allowed")
 
+    # =========================
+    # 📤 HANDLE UPLOAD
+    # =========================
     if request.method == "POST":
         files = request.FILES.getlist("files")
 
-        for f in files:
-            extracted_text = ""
-            try:
-                extracted_text = extract_text_from_file(f) or ""
-            except Exception:
-                pass
-
-            document = Document(
-                uploaded_by=user,
-                organization=None if user.is_superuser else member.organization,
-                is_public=user.is_superuser,
-                file=f,
-                extracted_text=extracted_text,
+        if not files:
+            return JsonResponse(
+                {"success": False, "error": "No files selected."},
+                status=400,
             )
 
-            document.save()  # search_vector handled in model
+        try:
+            for f in files:
+                extracted_text = ""
+                try:
+                    extracted_text = extract_text_from_file(f) or ""
+                except Exception:
+                    # Extraction failure should NOT break upload
+                    pass
 
+                Document.objects.create(
+                    uploaded_by=user,
+                    organization=None if user.is_superuser else member.organization,
+                    is_public=user.is_superuser,
+                    file=f,
+                    extracted_text=extracted_text,
+                )
+
+        except Exception as e:
+            return JsonResponse(
+                {"success": False, "error": "Upload failed."},
+                status=500,
+            )
+
+        # 🔥 If AJAX request → return JSON
+        if request.headers.get("x-requested-with") == "XMLHttpRequest":
+            return JsonResponse({"success": True})
+
+        # Fallback (non-AJAX form submit)
         messages.success(request, "Documents uploaded successfully.")
         return redirect("documents:document_list")
 
-    return render(request, "documents/upload.html")
+    # =========================
+    # 📄 SHOW PAGE
+    # =========================
+    folders = Folder.objects.filter(owner=user).order_by("name")
+
+    return render(
+        request,
+        "documents/upload.html",
+        {"folders": folders},
+    )
+
 
 
 # =========================
