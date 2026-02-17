@@ -58,37 +58,15 @@ class Folder(models.Model):
             parent = parent.parent
         return " / ".join(reversed(parts))
 
-    def is_descendant_of(self, folder):
-        parent = self.parent
-        while parent:
-            if parent == folder:
-                return True
-            parent = parent.parent
-        return False
-
     def clean(self):
         if self.parent == self:
             raise ValidationError("Folder cannot be its own parent.")
-
-        if self.parent and self.parent.is_descendant_of(self):
-            raise ValidationError("Cannot nest folder inside itself.")
 
         if self.parent and self.parent.organization != self.organization:
             raise ValidationError("Folder organization mismatch.")
 
         if self.parent and self.parent.owner != self.owner:
             raise ValidationError("Folder owner mismatch.")
-
-    @property
-    def document_count(self):
-        return self.documents.count()
-
-    @property
-    def total_document_count(self):
-        count = self.documents.count()
-        for child in self.children.all():
-            count += child.total_document_count
-        return count
 
 
 # ============================
@@ -134,15 +112,6 @@ class Document(models.Model):
         indexes = [
             GinIndex(fields=["search_vector"]),
         ]
-        constraints = [
-            models.CheckConstraint(
-                check=(
-                    models.Q(is_public=True, organization__isnull=True)
-                    | models.Q(is_public=False)
-                ),
-                name="public_docs_have_no_org",
-            ),
-        ]
 
     def __str__(self):
         return self.display_name
@@ -174,13 +143,13 @@ class Document(models.Model):
             except Exception:
                 pass
 
-        # Validate (exclude search_vector — handled separately)
+        # Validate everything except search_vector
         self.full_clean(exclude=["search_vector"])
 
-        # 1️⃣ INSERT (no expressions allowed)
+        # 1️⃣ Normal save (no SQL expressions allowed here)
         super().save(*args, **kwargs)
 
-        # 2️⃣ UPDATE search vector (allowed)
+        # 2️⃣ Update search vector safely AFTER insert
         if self.extracted_text:
             type(self).objects.filter(pk=self.pk).update(
                 search_vector=SearchVector("extracted_text")
@@ -212,4 +181,4 @@ class DocumentAccess(models.Model):
         unique_together = ("document", "user")
 
     def __str__(self):
-        return f"{self.user.email} → {self.document.display_name}"
+        return f"{self.user.username} → {self.document.display_name}"
