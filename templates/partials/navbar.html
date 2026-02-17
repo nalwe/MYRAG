@@ -12,7 +12,7 @@
                   {% elif user.is_authenticated %}
                     {% url 'chat_view' %}
                   {% else %}
-                    {% url 'document_list' %}
+                    {% url 'documents:document_list' %}
                   {% endif %}"
            class="text-lg font-semibold text-blue-600">
           🧠 LesgoLegal
