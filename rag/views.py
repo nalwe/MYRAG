@@ -57,14 +57,17 @@ def check_ai_access(user):
 def chat_view(request, session_id=None):
     user = request.user
 
+    # 🔐 Access control
     allowed, error = check_ai_access(user)
     if not allowed:
         return HttpResponseForbidden(error)
 
+    # 🧠 Ensure onboarding session exists
     create_onboarding_chat(user)
 
     sessions = ChatSession.objects.filter(user=user).order_by("-created_at")
 
+    # 💬 Get or create session safely
     if session_id:
         session = get_object_or_404(ChatSession, id=session_id, user=user)
     else:
@@ -72,22 +75,29 @@ def chat_view(request, session_id=None):
 
     messages = session.messages.order_by("created_at")
 
+    # 📄 Active document (strict access scope)
     doc_id = request.GET.get("doc")
     active_document = None
 
     if doc_id:
-        active_document = get_accessible_documents(user).filter(id=doc_id).first()
+        try:
+            active_document = get_accessible_documents(user).get(id=doc_id)
+        except UserDocument.DoesNotExist:
+            active_document = None  # silently ignore invalid doc
 
+    # ✉️ Handle message
     if request.method == "POST":
         query = request.POST.get("query", "").strip()
 
         if query:
+            # Save user message
             ChatMessage.objects.create(
                 session=session,
                 role="user",
                 content=query,
             )
 
+            # 🔎 Retrieve chunks
             chunks = retrieve_chunks_for_chat(
                 user=user,
                 question=query,
@@ -95,6 +105,7 @@ def chat_view(request, session_id=None):
                 max_chunks=8,
             )
 
+            # 🤖 Generate answer
             answer_md = rag_answer(
                 question=query,
                 document=active_document,
@@ -105,6 +116,7 @@ def chat_view(request, session_id=None):
                 extensions=["extra", "sane_lists"]
             )
 
+            # 💾 Save assistant message
             ChatMessage.objects.create(
                 session=session,
                 role="assistant",
@@ -121,6 +133,7 @@ def chat_view(request, session_id=None):
                 },
             )
 
+        # 🔁 Preserve document context
         if active_document:
             return redirect(
                 f"{reverse('chat_session', args=[session.id])}?doc={active_document.id}"
@@ -128,6 +141,7 @@ def chat_view(request, session_id=None):
 
         return redirect("chat_session", session_id=session.id)
 
+    # 🖥️ Render chat
     return render(
         request,
         "chat/chat.html",
@@ -138,6 +152,7 @@ def chat_view(request, session_id=None):
             "active_document": active_document,
         },
     )
+
 
 
 # =====================================================
