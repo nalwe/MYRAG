@@ -132,7 +132,7 @@
                   <ul class="list-disc ml-4 space-y-1">
                     {% for src in msg.sources.documents %}
                       <li>
-                        <a href="{% url 'document_preview' src.id %}"
+                        <a href="{% url 'documents:document_preview' src.id %}"
                            class="text-blue-600 hover:underline"
                            target="_blank">
                           {{ src.title }}
