@@ -7,7 +7,7 @@ def index_document(doc):
     if doc.is_public and doc.uploaded_by_admin:
         index_name = "public"
     else:
-        index_name = f"private_{doc.uploaded_by.id}"
+        index_name = f"user_{doc.uploaded_by.id}"
 
     index, chunks = load_or_create_index(index_name)
 

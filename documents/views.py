@@ -11,6 +11,8 @@ from documents.models import Document, Folder
 from documents.utils import get_accessible_documents
 from documents.utils.text_extractor import extract_text_from_file
 from accounts.models import OrganizationMember
+from rag.indexer import index_document
+
 
 
 # =========================
@@ -112,6 +114,9 @@ def document_upload(request):
                     file=f,
                     extracted_text=extracted_text,
                 )
+
+                if doc.extracted_text:
+                    index_document(doc)
 
         except Exception as e:
             return JsonResponse(
