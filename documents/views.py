@@ -71,6 +71,8 @@ def document_list(request):
 # =========================
 
 
+from rag.indexer import index_document  # 🔥 ADD THIS IMPORT
+
 @login_required
 @require_http_methods(["GET", "POST"])
 def document_upload(request):
@@ -101,13 +103,25 @@ def document_upload(request):
         try:
             for f in files:
                 extracted_text = ""
+
+                # 🔍 PRIMARY EXTRACTION
                 try:
                     extracted_text = extract_text_from_file(f) or ""
-                except Exception:
-                    # Extraction failure should NOT break upload
-                    pass
+                except Exception as e:
+                    print("TEXT EXTRACTION FAILED:", str(e))
+                    extracted_text = ""
 
-                Document.objects.create(
+                # 🔥 FALLBACK FOR TEXT FILES (IMPORTANT FOR DO PRODUCTION)
+                if not extracted_text and f.name.lower().endswith((".txt", ".md", ".csv")):
+                    try:
+                        f.seek(0)  # Reset file pointer
+                        extracted_text = f.read().decode("utf-8", errors="ignore")
+                    except Exception as e:
+                        print("TEXT FALLBACK FAILED:", str(e))
+                        extracted_text = ""
+
+                # 💾 SAVE DOCUMENT (CORRECTLY ASSIGN doc)
+                doc = Document.objects.create(
                     uploaded_by=user,
                     organization=None if user.is_superuser else member.organization,
                     is_public=user.is_superuser,
@@ -115,22 +129,30 @@ def document_upload(request):
                     extracted_text=extracted_text,
                 )
 
-                if doc.extracted_text:
-                    index_document(doc)
+                # 🤖 AUTO-INDEX FOR RAG (CRITICAL FIX)
+                if extracted_text.strip():
+                    try:
+                        index_document(doc)
+                        print(f"Indexed document: {doc.id} - {doc.file.name}")
+                    except Exception as e:
+                        print("INDEXING FAILED:", str(e))
+                else:
+                    print(f"Skipping indexing (no text): {f.name}")
 
         except Exception as e:
+            print("UPLOAD ERROR:", str(e))
             return JsonResponse(
                 {"success": False, "error": "Upload failed."},
                 status=500,
             )
 
-        # 🔥 If AJAX request → return JSON
+        # 🔥 AJAX response
         if request.headers.get("x-requested-with") == "XMLHttpRequest":
             return JsonResponse({"success": True})
 
-        # Fallback (non-AJAX form submit)
-        messages.success(request, "Documents uploaded successfully.")
+        messages.success(request, "Documents uploaded and indexed successfully.")
         return redirect("documents:document_list")
+
 
     # =========================
     # 📄 SHOW PAGE
