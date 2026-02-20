@@ -73,6 +73,8 @@ def document_list(request):
 
 from rag.indexer import index_document  # 🔥 ADD THIS IMPORT
 
+from rag.indexer import index_document  # 🔥 ADD THIS IMPORT
+
 @login_required
 @require_http_methods(["GET", "POST"])
 def document_upload(request):
