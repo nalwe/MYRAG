@@ -13,6 +13,19 @@ from documents.utils.text_extractor import extract_text_from_file
 from accounts.models import OrganizationMember
 from rag.indexer import index_document
 
+from rag.indexer import index_document  # 🔥 ADD THIS IMPORT
+
+from rag.indexer import index_document
+from documents.utils.text_extractor import extract_text_from_file
+from django.contrib import messages
+from django.http import JsonResponse, HttpResponseForbidden
+from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_http_methods
+from accounts.models import OrganizationMember
+from documents.models import Document
+from bs4 import BeautifulSoup
+import os
+
 
 
 # =========================
@@ -71,10 +84,6 @@ def document_list(request):
 # =========================
 
 
-from rag.indexer import index_document  # 🔥 ADD THIS IMPORT
-
-from rag.indexer import index_document  # 🔥 ADD THIS IMPORT
-
 @login_required
 @require_http_methods(["GET", "POST"])
 def document_upload(request):
@@ -90,9 +99,6 @@ def document_upload(request):
     if not (user.is_superuser or (member and member.is_admin())):
         return HttpResponseForbidden("Not allowed")
 
-    # =========================
-    # 📤 HANDLE UPLOAD
-    # =========================
     if request.method == "POST":
         files = request.FILES.getlist("files")
 
@@ -104,25 +110,55 @@ def document_upload(request):
 
         try:
             for f in files:
+                filename = f.name.lower()
                 extracted_text = ""
 
-                # 🔍 PRIMARY EXTRACTION
+                # =========================
+                # 🔍 PRIMARY EXTRACTION (PDF, DOCX, etc.)
+                # =========================
                 try:
+                    f.seek(0)
                     extracted_text = extract_text_from_file(f) or ""
                 except Exception as e:
-                    print("TEXT EXTRACTION FAILED:", str(e))
+                    print(f"[EXTRACTION ERROR] {f.name}: {str(e)}")
                     extracted_text = ""
 
-                # 🔥 FALLBACK FOR TEXT FILES (IMPORTANT FOR DO PRODUCTION)
-                if not extracted_text and f.name.lower().endswith((".txt", ".md", ".csv")):
+                # =========================
+                # 🔥 FALLBACK 1: TEXT FILES
+                # =========================
+                if not extracted_text and filename.endswith((".txt", ".md", ".csv")):
                     try:
-                        f.seek(0)  # Reset file pointer
+                        f.seek(0)
                         extracted_text = f.read().decode("utf-8", errors="ignore")
+                        print(f"[FALLBACK] Text read directly: {f.name}")
                     except Exception as e:
-                        print("TEXT FALLBACK FAILED:", str(e))
-                        extracted_text = ""
+                        print(f"[TXT FALLBACK FAILED] {f.name}: {str(e)}")
 
-                # 💾 SAVE DOCUMENT (CORRECTLY ASSIGN doc)
+                # =========================
+                # 🔥 FALLBACK 2: HTML FILES
+                # =========================
+                if not extracted_text and filename.endswith((".html", ".htm")):
+                    try:
+                        f.seek(0)
+                        html_content = f.read().decode("utf-8", errors="ignore")
+                        soup = BeautifulSoup(html_content, "html.parser")
+                        extracted_text = soup.get_text(separator="\n")
+                        print(f"[FALLBACK] HTML parsed: {f.name}")
+                    except Exception as e:
+                        print(f"[HTML FALLBACK FAILED] {f.name}: {str(e)}")
+
+                # =========================
+                # 🚨 SCANNED PDF WARNING (DO limitation)
+                # =========================
+                if not extracted_text and filename.endswith(".pdf"):
+                    print(
+                        f"[WARNING] No text extracted from PDF: {f.name}. "
+                        f"This may be a scanned PDF (OCR not available on App Platform)."
+                    )
+
+                # =========================
+                # 💾 SAVE DOCUMENT
+                # =========================
                 doc = Document.objects.create(
                     uploaded_by=user,
                     organization=None if user.is_superuser else member.organization,
@@ -131,24 +167,25 @@ def document_upload(request):
                     extracted_text=extracted_text,
                 )
 
-                # 🤖 AUTO-INDEX FOR RAG (CRITICAL FIX)
+                # =========================
+                # 🤖 AUTO INDEX FOR RAG (CRITICAL)
+                # =========================
                 if extracted_text.strip():
                     try:
                         index_document(doc)
-                        print(f"Indexed document: {doc.id} - {doc.file.name}")
+                        print(f"[INDEXED] {doc.id} - {doc.file.name}")
                     except Exception as e:
-                        print("INDEXING FAILED:", str(e))
+                        print(f"[INDEXING FAILED] {f.name}: {str(e)}")
                 else:
-                    print(f"Skipping indexing (no text): {f.name}")
+                    print(f"[SKIPPED INDEXING] No text found in {f.name}")
 
         except Exception as e:
-            print("UPLOAD ERROR:", str(e))
+            print(f"[UPLOAD ERROR]: {str(e)}")
             return JsonResponse(
                 {"success": False, "error": "Upload failed."},
                 status=500,
             )
 
-        # 🔥 AJAX response
         if request.headers.get("x-requested-with") == "XMLHttpRequest":
             return JsonResponse({"success": True})
 
