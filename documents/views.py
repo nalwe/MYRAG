@@ -110,65 +110,32 @@ def document_upload(request):
 
         try:
             for f in files:
-                filename = f.name.lower()
-                extracted_text = ""
 
                 # =========================
-                # 🔍 PRIMARY EXTRACTION (PDF, DOCX, etc.)
-                # =========================
-                try:
-                    f.seek(0)
-                    extracted_text = extract_text_from_file(f) or ""
-                except Exception as e:
-                    print(f"[EXTRACTION ERROR] {f.name}: {str(e)}")
-                    extracted_text = ""
-
-                # =========================
-                # 🔥 FALLBACK 1: TEXT FILES
-                # =========================
-                if not extracted_text and filename.endswith((".txt", ".md", ".csv")):
-                    try:
-                        f.seek(0)
-                        extracted_text = f.read().decode("utf-8", errors="ignore")
-                        print(f"[FALLBACK] Text read directly: {f.name}")
-                    except Exception as e:
-                        print(f"[TXT FALLBACK FAILED] {f.name}: {str(e)}")
-
-                # =========================
-                # 🔥 FALLBACK 2: HTML FILES
-                # =========================
-                if not extracted_text and filename.endswith((".html", ".htm")):
-                    try:
-                        f.seek(0)
-                        html_content = f.read().decode("utf-8", errors="ignore")
-                        soup = BeautifulSoup(html_content, "html.parser")
-                        extracted_text = soup.get_text(separator="\n")
-                        print(f"[FALLBACK] HTML parsed: {f.name}")
-                    except Exception as e:
-                        print(f"[HTML FALLBACK FAILED] {f.name}: {str(e)}")
-
-                # =========================
-                # 🚨 SCANNED PDF WARNING (DO limitation)
-                # =========================
-                if not extracted_text and filename.endswith(".pdf"):
-                    print(
-                        f"[WARNING] No text extracted from PDF: {f.name}. "
-                        f"This may be a scanned PDF (OCR not available on App Platform)."
-                    )
-
-                # =========================
-                # 💾 SAVE DOCUMENT
+                # 💾 STEP 1: SAVE DOCUMENT FIRST
                 # =========================
                 doc = Document.objects.create(
                     uploaded_by=user,
                     organization=None if user.is_superuser else member.organization,
                     is_public=user.is_superuser,
                     file=f,
-                    extracted_text=extracted_text,
                 )
 
                 # =========================
-                # 🤖 AUTO INDEX FOR RAG (CRITICAL)
+                # 🔍 STEP 2: EXTRACT TEXT (USING FILE PATH)
+                # =========================
+                try:
+                    extracted_text = extract_text_from_file(doc.file.path) or ""
+                except Exception as e:
+                    print(f"[EXTRACTION ERROR] {f.name}: {str(e)}")
+                    extracted_text = ""
+
+                # Save extracted text
+                doc.extracted_text = extracted_text
+                doc.save(update_fields=["extracted_text"])
+
+                # =========================
+                # 🤖 STEP 3: INDEX FOR RAG (ONLY IF TEXT EXISTS)
                 # =========================
                 if extracted_text.strip():
                     try:
@@ -191,7 +158,6 @@ def document_upload(request):
 
         messages.success(request, "Documents uploaded and indexed successfully.")
         return redirect("documents:document_list")
-
 
     # =========================
     # 📄 SHOW PAGE

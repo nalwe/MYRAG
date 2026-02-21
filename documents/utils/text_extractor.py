@@ -1,5 +1,5 @@
 import os
-from pdfminer.high_level import extract_text
+from pdfminer.high_level import extract_text as pdf_extract_text
 from pdf2image import convert_from_path
 import pytesseract
 from PIL import Image
@@ -7,30 +7,58 @@ import docx
 
 
 def extract_text_from_file(filepath):
+    """
+    Extract text from supported file types.
+    Expects a REAL file path (e.g., doc.file.path).
+    """
+
     if not filepath or not os.path.exists(filepath):
         return ""
 
     ext = os.path.splitext(filepath)[1].lower()
 
-    # ✅ PDF (text-based)
+    # =========================
+    # 📄 PDF (Text-Based First)
+    # =========================
     if ext == ".pdf":
-        text = extract_text(filepath)
-        if text and text.strip():
-            return text
+        try:
+            text = pdf_extract_text(filepath)
+            if text and text.strip():
+                return text.strip()
+        except Exception as e:
+            print(f"[PDF TEXT EXTRACTION FAILED] {e}")
 
-        # 🔁 fallback to OCR (scanned PDF)
-        images = convert_from_path(filepath)
-        return "\n".join(
-            pytesseract.image_to_string(img) for img in images
-        )
+        # 🔁 Fallback to OCR (for scanned PDFs)
+        try:
+            images = convert_from_path(filepath)
+            ocr_text = "\n".join(
+                pytesseract.image_to_string(img) for img in images
+            )
+            return ocr_text.strip()
+        except Exception as e:
+            print(f"[PDF OCR FAILED] {e}")
+            return ""
 
-    # ✅ Word
+    # =========================
+    # 📄 DOCX (Word Documents)
+    # =========================
     if ext == ".docx":
-        d = docx.Document(filepath)
-        return "\n".join(p.text for p in d.paragraphs)
+        try:
+            d = docx.Document(filepath)
+            text = "\n".join(p.text for p in d.paragraphs)
+            return text.strip()
+        except Exception as e:
+            print(f"[DOCX EXTRACTION FAILED] {e}")
+            return ""
 
-    # ✅ Images
+    # =========================
+    # 🖼 Images (OCR)
+    # =========================
     if ext in [".png", ".jpg", ".jpeg"]:
-        return pytesseract.image_to_string(Image.open(filepath))
+        try:
+            return pytesseract.image_to_string(Image.open(filepath)).strip()
+        except Exception as e:
+            print(f"[IMAGE OCR FAILED] {e}")
+            return ""
 
     return ""
