@@ -7,20 +7,6 @@ from documents.models import Document
 
 
 # =========================================================
-# 🔹 TEXT CHUNKING
-# =========================================================
-def chunk_text(text, size=500, overlap=50):
-    words = text.split()
-    chunks = []
-
-    step = size - overlap
-    for i in range(0, len(words), step):
-        chunks.append(" ".join(words[i:i + size]))
-
-    return chunks
-
-
-# =========================================================
 # 🔹 CORE RETRIEVER (GLOBAL + CONTEXT MODE)
 # =========================================================
 def retrieve_chunks(
@@ -36,32 +22,36 @@ def retrieve_chunks(
 
     Modes:
     - Context mode: document_ids or folder_ids provided
-    - Global mode: no context provided
+    - Global mode: no context provided (auto-search all accessible docs)
     """
 
+    # -----------------------------------------------------
+    # 🔹 Embed Query
+    # -----------------------------------------------------
     query_embedding = embed_texts([query])[0]
     results = []
 
     # -----------------------------------------------------
-    # 🔐 ACCESSIBLE DOCUMENTS
+    # 🔐 Accessible Documents
     # -----------------------------------------------------
     docs_qs = Document.objects.filter(
         Q(is_public=True) | Q(uploaded_by=user)
     )
 
-    # Basic users → public only
     if public_only:
         docs_qs = docs_qs.filter(is_public=True)
 
-    # Context filters
     if document_ids:
         docs_qs = docs_qs.filter(id__in=document_ids)
 
     if folder_ids:
         docs_qs = docs_qs.filter(folder_id__in=folder_ids)
 
+    # Optional: limit number of docs searched (scalability)
+    docs_qs = docs_qs[:30]
+
     # -----------------------------------------------------
-    # 🔍 FAISS SEARCH PER DOCUMENT
+    # 🔍 Search Each Document Index
     # -----------------------------------------------------
     for doc in docs_qs:
         index_name = f"doc_{doc.id}"
@@ -75,27 +65,47 @@ def retrieve_chunks(
             min(k, index.ntotal)
         )
 
-        for i in I[0]:
-            if i < len(chunks):
+        for rank, idx in enumerate(I[0]):
+            if idx < len(chunks):
                 results.append({
-                    "text": chunks[i],
+                    "text": chunks[idx],
                     "document_id": doc.id,
                     "document_title": doc.title,
-                    "score": float(D[0][list(I[0]).index(i)]),
+                    "score": float(D[0][rank]),  # Lower = better (L2 distance)
                 })
 
     # -----------------------------------------------------
-    # 🔝 SORT + LIMIT
+    # 🔝 Global Ranking
     # -----------------------------------------------------
     results.sort(key=lambda x: x["score"])
-    return results[:k]
+
+    # -----------------------------------------------------
+    # 🔀 Ensure Document Diversity
+    # (Prevents one large doc dominating results)
+    # -----------------------------------------------------
+    final_results = []
+    seen_docs = set()
+
+    for r in results:
+        if (
+            r["document_id"] not in seen_docs
+            or len(final_results) < k
+        ):
+            final_results.append(r)
+            seen_docs.add(r["document_id"])
+
+        if len(final_results) >= k:
+            break
+
+    return final_results
 
 
 # =========================================================
-# 🔹 SIMPLE HELPER (TEXT-ONLY, BACKWARD COMPATIBLE)
+# 🔹 TEXT-ONLY HELPER (Backward Compatibility)
 # =========================================================
 def retrieve_chunk_texts(**kwargs):
     """
-    Returns only chunk text (for older code compatibility)
+    Returns only chunk text.
+    Useful for simple RAG pipelines.
     """
     return [r["text"] for r in retrieve_chunks(**kwargs)]

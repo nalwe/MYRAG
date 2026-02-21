@@ -67,7 +67,7 @@ def chat_view(request, session_id=None):
 
     sessions = ChatSession.objects.filter(user=user).order_by("-created_at")
 
-    # 💬 Get or create session safely
+    # 💬 Get or create session
     if session_id:
         session = get_object_or_404(ChatSession, id=session_id, user=user)
     else:
@@ -75,40 +75,54 @@ def chat_view(request, session_id=None):
 
     messages = session.messages.order_by("created_at")
 
-    # 📄 Active document (strict access scope)
+    # 📄 Active document (optional scope)
     doc_id = request.GET.get("doc")
     active_document = None
 
     if doc_id:
         try:
             active_document = get_accessible_documents(user).get(id=doc_id)
-        except UserDocument.DoesNotExist:
-            active_document = None  # silently ignore invalid doc
+        except Document.DoesNotExist:
+            active_document = None
 
-    # ✉️ Handle message
+    # ✉️ Handle message submission
     if request.method == "POST":
         query = request.POST.get("query", "").strip()
 
         if query:
-            # Save user message
+            # 💾 Save user message
             ChatMessage.objects.create(
                 session=session,
                 role="user",
                 content=query,
             )
 
-            # 🔎 Retrieve chunks
-            chunks = retrieve_chunks_for_chat(
-                user=user,
-                question=query,
-                document=active_document,
-                max_chunks=8,
-            )
+            # 🔎 Retrieve chunks (Smart Mode)
+            if active_document:
+                # Document-specific search
+                retrieved = retrieve_chunks(
+                    user=user,
+                    query=query,
+                    document_ids=[active_document.id],
+                    k=5,
+                )
+            else:
+                # Global search (auto-select best docs)
+                retrieved = retrieve_chunks(
+                    user=user,
+                    query=query,
+                    k=5,
+                )
 
-            # 🤖 Generate answer
+            retrieved_texts = [r["text"] for r in retrieved]
+
+            # 🧠 Build context
+            #context = "\n\n---\n\n".join(retrieved_texts)
+
+            # 🤖 Generate grounded answer
             answer_md = rag_answer(
                 question=query,
-                document=active_document,
+                chunks=retrieved,
             )
 
             answer_html = markdown.markdown(
@@ -116,24 +130,28 @@ def chat_view(request, session_id=None):
                 extensions=["extra", "sane_lists"]
             )
 
+            # 📚 Collect unique source documents
+            source_docs = {}
+            for r in retrieved:
+                source_docs[r["document_id"]] = r["document_title"]
+
+            formatted_sources = [
+                {"id": doc_id, "title": title}
+                for doc_id, title in source_docs.items()
+            ]
+
             # 💾 Save assistant message
             ChatMessage.objects.create(
                 session=session,
                 role="assistant",
                 content=answer_html,
                 sources={
-                    "documents": (
-                        [{
-                            "id": active_document.id,
-                            "title": active_document.display_name,
-                        }]
-                        if active_document else []
-                    ),
-                    "chunks": chunks,
+                    "documents": formatted_sources,
+                    "chunks": retrieved_texts,
                 },
             )
 
-        # 🔁 Preserve document context
+        # 🔁 Preserve document filter
         if active_document:
             return redirect(
                 f"{reverse('chat_session', args=[session.id])}?doc={active_document.id}"

@@ -43,19 +43,22 @@ def rag_answer_from_chunks(
     # SYSTEM PROMPT (STRICT + CLEAN OUTPUT)
     # =========================
     system_prompt = (
-        "You are a retrieval-augmented assistant.\n"
-        "You MUST answer using ONLY the sources provided.\n"
-        "You MUST NOT use external knowledge.\n"
-        "If the answer is not explicitly present, say so clearly.\n\n"
-        "MANDATORY FORMAT RULES:\n"
-        "- Output MUST be valid Markdown\n"
-        "- Start with a clear heading (##)\n"
-        "- Use bullet points for lists\n"
-        "- Use short, precise lines\n"
-        "- Leave a blank line between sections\n"
-        "- Do NOT write long paragraphs\n"
-        "- Do NOT repeat the sources verbatim\n"
-    )
+    "You are a retrieval-augmented legal assistant.\n"
+    "You MUST answer using ONLY the sources provided.\n"
+    "You MUST NOT use external knowledge.\n"
+    "If the answer is not explicitly present, say so clearly.\n\n"
+    "CITATION RULE:\n"
+    "- When referencing information, cite the source number like (S1), (S2).\n"
+    "- Do not invent sources.\n\n"
+    "MANDATORY FORMAT RULES:\n"
+    "- Output MUST be valid Markdown\n"
+    "- Start with a clear heading (##)\n"
+    "- Use bullet points for lists\n"
+    "- Use short, precise lines\n"
+    "- Leave a blank line between sections\n"
+    "- Do NOT write long paragraphs\n"
+    "- Do NOT repeat the sources verbatim\n"
+)
 
     # =========================
     # USER PROMPT
