@@ -5,11 +5,8 @@ from .embeddings import embed_texts
 
 
 def index_document(doc):
-    # ✅ Correct index selection logic
-    if doc.is_public:
-        index_name = "public"
-    else:
-        index_name = f"user_{doc.uploaded_by.id}"
+    # 🔥 Use PER-DOCUMENT index namespace
+    index_name = f"doc_{doc.id}"
 
     index, chunks = load_or_create_index(index_name)
 
@@ -21,7 +18,6 @@ def index_document(doc):
 
     # Generate embeddings
     embeddings = embed_texts(text_chunks)
-
     if len(embeddings) == 0:
         print("[INDEXING STOPPED] No embeddings returned.")
         return
