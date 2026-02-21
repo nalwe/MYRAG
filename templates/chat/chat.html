@@ -2,30 +2,30 @@
 {% block title %}Chat{% endblock %}
 {% block content %}
 
-<div class="flex h-screen bg-gray-50">
+<div class="flex h-screen bg-gradient-to-b from-gray-50 to-gray-100">
 
   <!-- =========================
-       SIDEBAR — CHATS
+       SIDEBAR
   ========================== -->
-  <aside class="w-64 bg-white border-r flex flex-col">
+  <aside class="w-64 bg-white border-r flex flex-col shadow-sm">
 
     <div class="p-4 border-b">
       <h2 class="font-semibold text-lg">💬 Chats</h2>
     </div>
 
-    <div class="p-4 space-y-2">
+    <div class="p-4 space-y-3">
       <a href="{% url 'chat_view' %}"
-         class="block text-center bg-blue-600 text-white text-sm py-2 rounded hover:bg-blue-700">
+         class="block text-center bg-blue-600 text-white text-sm py-2 rounded-lg hover:bg-blue-700 transition">
         ➕ New Chat
       </a>
 
       <form method="post"
             action="{% url 'clear_all_chats' %}"
-            onsubmit="return confirm('This will permanently delete ALL your chats. Continue?');">
+            onsubmit="return confirm('Delete ALL chats?');">
         {% csrf_token %}
         <button
-          class="w-full bg-red-600 text-white text-sm py-2 rounded hover:bg-red-700">
-          🗑️ Clear All Chats
+          class="w-full bg-red-600 text-white text-sm py-2 rounded-lg hover:bg-red-700 transition">
+          🗑️ Clear All
         </button>
       </form>
     </div>
@@ -34,7 +34,7 @@
       {% for s in sessions %}
         <div class="group flex items-center justify-between">
           <a href="{% url 'chat_session' s.id %}"
-             class="flex-1 px-3 py-2 text-sm truncate rounded
+             class="flex-1 px-3 py-2 text-sm truncate rounded-lg
                {% if active_session and s.id == active_session.id %}
                  bg-blue-100 font-semibold border-l-4 border-blue-500
                {% else %}
@@ -62,18 +62,21 @@
 
     <!-- HEADER -->
     <header class="bg-white border-b px-6 py-3 flex justify-between items-center">
-      <span class="font-semibold text-gray-800">
-        {{ active_session.title|default:"Chat" }}
-      </span>
+      <div class="flex items-center gap-3">
+        <span class="px-2 py-1 bg-indigo-100 text-indigo-700 rounded text-xs">
+          Legal AI
+        </span>
+        <span class="font-semibold text-gray-800">
+          {{ active_session.title|default:"Chat" }}
+        </span>
+      </div>
     </header>
 
-    <!-- =========================
-         SELECTED DOCUMENT BAR
-    ========================== -->
+    <!-- DOCUMENT BAR -->
     {% if active_document %}
-      <div class="mx-6 mt-3 p-3 border border-blue-200 bg-blue-50 rounded text-sm flex justify-between items-center">
+      <div class="mx-6 mt-4 p-3 border border-blue-200 bg-blue-50 rounded-lg text-sm flex justify-between items-center">
         <div>
-          📄 <strong>Selected document:</strong>
+          📄 <strong>Selected:</strong>
           {{ active_document.display_name }}
 
           {% if active_document.is_public %}
@@ -93,85 +96,101 @@
     <!-- =========================
          MESSAGES
     ========================== -->
-    <section id="chat-messages" class="flex-1 overflow-y-auto p-6 space-y-6">
+    <section id="chat-messages"
+             class="flex-1 overflow-y-auto px-6 py-8 space-y-8">
 
-      {% for msg in messages %}
-        {% if msg.role == "user" %}
-          <div class="flex justify-end">
-            <div class="max-w-xl bg-blue-600 text-white px-4 py-2 rounded-lg text-sm shadow">
-              {{ msg.content|linebreaks }}
+      {% if messages %}
+        {% for msg in messages %}
+          {% if msg.role == "user" %}
+            <div class="flex justify-end">
+              <div class="max-w-xl bg-blue-600 text-white px-5 py-3 rounded-2xl text-sm shadow-md">
+                {{ msg.content|linebreaks }}
+              </div>
             </div>
-          </div>
-        {% else %}
-          <div class="flex justify-start">
-            <div class="bg-white border border-gray-200 rounded-xl p-6 max-w-3xl w-full shadow-sm">
+          {% else %}
+            <div class="flex justify-start">
+              <div class="bg-gray-50 border border-gray-200 rounded-2xl px-6 py-5 max-w-3xl w-full shadow-sm">
 
-              <div class="flex justify-between items-center mb-3 text-xs">
-                <span class="px-2 py-1 bg-gray-100 text-gray-600 rounded">
-                  💬 Assistant
-                </span>
+                <div class="flex justify-between items-center mb-3 text-xs text-gray-500">
+                  <span class="font-medium text-gray-700">
+                    💬 Assistant
+                  </span>
 
-                <div class="flex gap-3">
                   <button onclick="copyResponse('{{ msg.id }}')"
                           class="text-blue-600 hover:underline">
                     Copy
                   </button>
                 </div>
-              </div>
 
-              <div
-                id="msg-{{ msg.id }}"
-                class="prose prose-sm max-w-none"
-              >
-                {{ msg.content|safe }}
-              </div>
+                <div id="msg-{{ msg.id }}"
+                     class="prose prose-sm max-w-none text-gray-800">
+                  {{ msg.content|safe }}
+                </div>
 
-              {% if msg.sources.documents %}
-                <div class="mt-5 pt-3 border-t text-xs text-gray-600">
-                  <div class="font-semibold mb-1">📚 Source Document</div>
-                  <ul class="list-disc ml-4 space-y-1">
-                    {% for src in msg.sources.documents %}
-                      <li>
+                {% if msg.sources.documents %}
+                  <div class="mt-6 pt-4 border-t text-xs text-gray-500">
+                    <div class="font-semibold mb-2 text-gray-700">
+                      Referenced Sources
+                    </div>
+
+                    <div class="flex flex-wrap gap-2">
+                      {% for src in msg.sources.documents %}
                         <a href="{% url 'documents:document_preview' src.id %}"
-                           class="text-blue-600 hover:underline"
-                           target="_blank">
+                           target="_blank"
+                           class="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs hover:bg-blue-200 transition">
                           {{ src.title }}
                         </a>
-                      </li>
-                    {% endfor %}
-                  </ul>
-                </div>
-              {% endif %}
+                      {% endfor %}
+                    </div>
+                  </div>
+                {% endif %}
 
-              {{ msg.sources|json_script:"sources-"|add:msg.id }}
-
+              </div>
             </div>
-          </div>
-        {% endif %}
-      {% empty %}
-        <p class="text-gray-500">Ask a question to start chatting.</p>
-      {% endfor %}
+          {% endif %}
+        {% endfor %}
+      {% else %}
+        <!-- Welcome Screen -->
+        <div class="flex flex-col items-center justify-center h-full text-center text-gray-500">
+          <div class="text-4xl mb-4">🧠</div>
+          <h2 class="text-xl font-semibold text-gray-700 mb-2">
+            Legal AI Assistant
+          </h2>
+          <p class="max-w-md text-sm">
+            Ask questions about your documents or select a public document to begin.
+          </p>
+        </div>
+      {% endif %}
+
+      <!-- Typing Indicator -->
+      <div id="typing-indicator"
+           class="hidden flex justify-start">
+        <div class="bg-gray-100 rounded-2xl px-4 py-3 text-sm text-gray-500 animate-pulse">
+          Assistant is typing...
+        </div>
+      </div>
 
     </section>
 
     <!-- =========================
          INPUT
     ========================== -->
-    <form method="post" class="bg-white border-t p-4">
+    <form method="post"
+          class="bg-white border-t p-4 sticky bottom-0">
       {% csrf_token %}
 
       {% if active_document %}
-        <!-- 🔒 PRESERVE SELECTED DOCUMENT -->
         <input type="hidden" name="doc" value="{{ active_document.id }}">
       {% endif %}
 
-      <div class="flex gap-3">
+      <div class="flex gap-3 items-center">
         <input type="text"
                name="query"
-               placeholder="Ask a question..."
-               class="flex-1 border rounded px-4 py-2 text-sm focus:ring focus:ring-blue-200"
+               placeholder="Ask a legal question..."
+               class="flex-1 border rounded-full px-5 py-3 text-sm focus:ring focus:ring-blue-200 focus:outline-none"
                required>
-        <button class="bg-blue-600 text-white px-5 py-2 rounded hover:bg-blue-700">
+        <button
+          class="bg-blue-600 text-white px-6 py-3 rounded-full hover:bg-blue-700 transition shadow-sm">
           Send
         </button>
       </div>
@@ -187,8 +206,19 @@ function copyResponse(id) {
   navigator.clipboard.writeText(el.innerText);
 }
 
+// Smooth scroll
 const chat = document.getElementById("chat-messages");
-if (chat) chat.scrollTop = chat.scrollHeight;
+if (chat) {
+  chat.scrollTo({
+    top: chat.scrollHeight,
+    behavior: "smooth"
+  });
+}
+
+// Typing indicator
+document.querySelector("form")?.addEventListener("submit", function() {
+  document.getElementById("typing-indicator")?.classList.remove("hidden");
+});
 </script>
 
 {% endblock %}
