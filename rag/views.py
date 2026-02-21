@@ -17,7 +17,7 @@ from rag.models import ChatSession, ChatMessage, ChatContext
 from documents.models import Document as UserDocument
 from documents.utils import get_accessible_documents
 from rag.utils import create_onboarding_chat
-from rag.retrieval import retrieve_chunks_for_chat
+from rag.retriever import retrieve_chunks
 from rag.rag_pipeline import rag_answer
 from accounts.models import OrganizationMember
 
