@@ -63,7 +63,7 @@
 
       <!-- RENAME -->
       <form method="post"
-            action="{% url 'rename_folder' folder.id %}"
+            action="{% url 'documents:rename_folder' folder.id %}"
             onclick="event.stopPropagation()">
         {% csrf_token %}
         <button type="submit"
@@ -74,7 +74,7 @@
 
       <!-- DELETE -->
       <form method="post"
-            action="{% url 'delete_folder' folder.id %}"
+            action="{% url 'documents:delete_folder' folder.id %}"
             onsubmit="event.stopPropagation(); return confirm('Delete folder and all contents?')">
         {% csrf_token %}
         <button type="submit"
