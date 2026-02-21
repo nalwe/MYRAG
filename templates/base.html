@@ -25,19 +25,13 @@
 </head>
 
 <body class="bg-gray-50 min-h-screen">
+  
   {% include "partials/navbar.html" %}
 
-    {% if messages %}
-      <div class="max-w-md mx-auto mt-4">
-        {% for message in messages %}
-          <div class="p-3 mb-2 rounded bg-red-100 text-red-700">
-            {{ message }}
-          </div>
-        {% endfor %}
-      </div>
-    {% endif %}
+  <!-- ✅ Removed global Django messages block 
+       (Prevents red debug-style boxes in chat UI) -->
 
-    {% block content %}{% endblock %}
+  {% block content %}{% endblock %}
 
 </body>
 </html>
