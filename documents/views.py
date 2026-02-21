@@ -40,16 +40,17 @@ def document_list(request):
 
     if user.is_superuser:
         documents = Document.objects.all()
+        folders = Folder.objects.all()
     else:
         documents = get_accessible_documents(user)
-
-    folders = Folder.objects.filter(uploaded_by=user).order_by("name")
+        folders = Folder.objects.filter(user=user)
 
     active_folder = None
+
     if folder_id:
         active_folder = folders.filter(id=folder_id).first()
         if active_folder:
-            documents = documents.filter(folder=active_folder)
+            documents = documents.filter(folder_id=folder_id)
 
     if query:
         search_query = SearchQuery(query, config="english")
@@ -73,7 +74,7 @@ def document_list(request):
         {
             "documents": documents,
             "folders": folders,
-            "active_folder": active_folder.id if active_folder else None,
+            "active_folder": active_folder,
             "query": query,
         }
     )
