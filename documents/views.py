@@ -102,6 +102,7 @@ def document_upload(request):
 
     if request.method == "POST":
         files = request.FILES.getlist("files")
+        folder_id = request.POST.get("folder")  # 👈 GET SELECTED FOLDER
 
         if not files:
             return JsonResponse(
@@ -109,21 +110,33 @@ def document_upload(request):
                 status=400,
             )
 
+        # 👇 Resolve folder safely
+        selected_folder = None
+        if folder_id:
+            try:
+                selected_folder = Folder.objects.get(
+                    id=folder_id,
+                    uploaded_by=user
+                )
+            except Folder.DoesNotExist:
+                selected_folder = None
+
         try:
             for f in files:
 
                 # =========================
-                # 💾 STEP 1: SAVE DOCUMENT FIRST
+                # 💾 STEP 1: SAVE DOCUMENT FIRST (NOW WITH FOLDER)
                 # =========================
                 doc = Document.objects.create(
                     uploaded_by=user,
                     organization=None if user.is_superuser else member.organization,
                     is_public=user.is_superuser,
                     file=f,
+                    folder=selected_folder,  # 👈 THIS WAS MISSING
                 )
 
                 # =========================
-                # 🔍 STEP 2: EXTRACT TEXT (USING FILE PATH)
+                # 🔍 STEP 2: EXTRACT TEXT
                 # =========================
                 try:
                     extracted_text = extract_text_from_file(doc.file.path) or ""
@@ -131,12 +144,11 @@ def document_upload(request):
                     print(f"[EXTRACTION ERROR] {f.name}: {str(e)}")
                     extracted_text = ""
 
-                # Save extracted text
                 doc.extracted_text = extracted_text
                 doc.save(update_fields=["extracted_text"])
 
                 # =========================
-                # 🤖 STEP 3: INDEX FOR RAG (ONLY IF TEXT EXISTS)
+                # 🤖 STEP 3: INDEX FOR RAG
                 # =========================
                 if extracted_text.strip():
                     try:

@@ -1,20 +1,23 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="max-w-xl mx-auto bg-white p-6 rounded shadow">
+<div class="max-w-xl mx-auto bg-white p-6 rounded-2xl shadow-sm border">
 
-  <h2 class="text-xl font-semibold mb-4">📤 Upload Documents</h2>
+  <h2 class="text-xl font-semibold mb-4 flex items-center gap-2">
+    📤 Upload Documents
+  </h2>
 
-  <form id="upload-form" method="post" enctype="multipart/form-data" class="space-y-4">
+  <form id="upload-form" method="post" enctype="multipart/form-data" class="space-y-5">
     {% csrf_token %}
 
     <!-- DRAG & DROP -->
     <div
       id="drop-zone"
-      class="border-2 border-dashed rounded p-6 text-center cursor-pointer bg-gray-50 hover:bg-gray-100"
+      class="border-2 border-dashed rounded-xl p-8 text-center cursor-pointer bg-gray-50 hover:bg-blue-50 transition"
     >
       <p class="text-sm text-gray-600">
-        Drag & drop files here or click to select
+        Drag & drop files here <br>
+        <span class="text-blue-600 font-medium">or click to select</span>
       </p>
 
       <input
@@ -33,19 +36,25 @@
     {% if folders %}
       <div>
         <label class="block text-sm font-medium mb-1">
-          Folder (optional)
+          📁 Select Folder
         </label>
-        <select name="folder" class="border rounded p-2 w-full">
-          <option value="">No Folder</option>
+
+        <select name="folder"
+                class="border rounded-lg p-2 w-full focus:ring-2 focus:ring-blue-500 focus:outline-none">
+          <option value="">— No Folder (Goes to All Documents) —</option>
           {% for folder in folders %}
             <option value="{{ folder.id }}">{{ folder.name }}</option>
           {% endfor %}
         </select>
+
+        <p class="text-xs text-gray-400 mt-1">
+          Choose where these documents should be organized.
+        </p>
       </div>
     {% endif %}
 
     <!-- VISIBILITY -->
-    <div class="border rounded p-3 bg-gray-50">
+    <div class="border rounded-lg p-3 bg-gray-50">
       <label class="flex items-center gap-2 text-sm">
         <input
           type="checkbox"
@@ -61,10 +70,10 @@
 
     <!-- PROGRESS BAR -->
     <div id="progress-wrapper" class="hidden">
-      <div class="w-full bg-gray-200 rounded">
+      <div class="w-full bg-gray-200 rounded-full">
         <div
           id="progress-bar"
-          class="bg-blue-600 text-xs text-white text-center py-1 rounded"
+          class="bg-blue-600 text-xs text-white text-center py-1 rounded-full transition-all duration-200"
           style="width: 0%"
         >
           0%
@@ -73,27 +82,29 @@
     </div>
 
     <!-- ACTIONS -->
-    <div class="flex justify-end gap-2 pt-2">
+    <div class="flex justify-end gap-3 pt-2">
+
       <a href="{% url 'documents:document_list' %}"
-         class="px-4 py-2 border rounded text-sm hover:bg-gray-100">
+         class="px-4 py-2 border rounded-lg text-sm hover:bg-gray-100">
         Back
       </a>
 
       <button
         type="button"
         id="cancel-upload"
-        class="hidden px-4 py-2 border border-red-500 text-red-600 rounded text-sm hover:bg-red-50"
+        class="hidden px-4 py-2 border border-red-500 text-red-600 rounded-lg text-sm hover:bg-red-50"
       >
-        Cancel Upload
+        Cancel
       </button>
 
       <button
         type="submit"
         id="upload-btn"
-        class="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
+        class="px-5 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 shadow-sm"
       >
         Upload Files
       </button>
+
     </div>
 
   </form>
@@ -102,10 +113,10 @@
 <!-- TOAST -->
 <div
   id="toast"
-  class="fixed bottom-5 right-5 hidden bg-green-600 text-white px-4 py-2 rounded shadow"
+  class="fixed bottom-5 right-5 hidden bg-green-600 text-white px-4 py-2 rounded-lg shadow"
 ></div>
 
-<!-- JS -->
+<!-- JAVASCRIPT -->
 <script>
   const dropZone = document.getElementById("drop-zone");
   const fileInput = document.getElementById("file-input");
@@ -127,9 +138,10 @@
     setTimeout(() => toast.classList.add("hidden"), 2500);
   }
 
-  // Drag & Drop
+  // Drag & Drop Click
   dropZone.addEventListener("click", () => fileInput.click());
 
+  // Drag styling
   dropZone.addEventListener("dragover", e => {
     e.preventDefault();
     dropZone.classList.add("bg-blue-50");
@@ -148,20 +160,29 @@
 
   fileInput.addEventListener("change", showFiles);
 
+  // ✅ IMPROVED showFiles()
   function showFiles() {
-    fileList.innerText = [...fileInput.files].map(f => f.name).join(", ");
+    if (fileInput.files.length === 0) {
+      fileList.innerText = "";
+      return;
+    }
+
+    const names = [...fileInput.files].map(f => {
+      const sizeMB = (f.size / (1024 * 1024)).toFixed(2);
+      return `${f.name} (${sizeMB} MB)`;
+    });
+
+    fileList.innerText = names.join(" | ");
   }
 
-  // =========================
-  // AJAX UPLOAD (FIXED)
-  // =========================
+  // AJAX Upload
   form.addEventListener("submit", e => {
     e.preventDefault();
 
     xhr = new XMLHttpRequest();
     const formData = new FormData(form);
 
-    xhr.open("POST", window.location.href); // ✅ FIXED
+    xhr.open("POST", window.location.href);
     xhr.setRequestHeader("X-Requested-With", "XMLHttpRequest");
 
     progressWrapper.classList.remove("hidden");
@@ -186,8 +207,8 @@
             setTimeout(() => {
               window.location.href = "{% url 'documents:document_list' %}";
             }, 1200);
-          } else if (response.error) {
-            resetUpload(response.error);
+          } else {
+            resetUpload(response.error || "Upload failed");
           }
         } catch {
           resetUpload("Unexpected server response");
@@ -202,7 +223,7 @@
     xhr.send(formData);
   });
 
-  // Cancel upload
+  // Cancel Upload
   cancelUploadBtn.addEventListener("click", () => {
     if (xhr) {
       xhr.abort();
@@ -224,4 +245,5 @@
     if (message) showToast(message);
   }
 </script>
+
 {% endblock %}
