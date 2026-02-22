@@ -34,40 +34,7 @@
          FOLDER TREE
     ========================== -->
     <aside class="border rounded p-3 bg-white">
-      <div class="flex justify-between items-center mb-2">
-        <h3 class="text-sm font-semibold">📁 Folders</h3>
-
-        {% if request.user.is_staff or request.user.profile.role == "premium" %}
-        <button
-          onclick="document.getElementById('new-folder-form').classList.toggle('hidden')"
-          class="text-xs text-blue-600 hover:underline">
-          ➕ New
-        </button>
-        {% endif %}
-      </div>
-
-      {% if request.user.is_staff or request.user.profile.role == "premium" %}
-      <form id="new-folder-form"
-            method="post"
-            action="{% url 'documents:create_folder' %}"
-            class="hidden mb-2 space-y-1">
-        {% csrf_token %}
-        {% if active_folder %}
-          <input type="hidden" name="parent" value="{{ active_folder }}">
-        {% endif %}
-
-        <input type="text"
-               name="name"
-               required
-               placeholder="Folder name"
-               class="w-full px-2 py-1 border rounded text-sm">
-
-        <button type="submit"
-                class="w-full text-sm bg-blue-600 text-white rounded py-1 hover:bg-blue-700">
-          Create
-        </button>
-      </form>
-      {% endif %}
+      <h3 class="text-sm font-semibold mb-2">📁 Folders</h3>
 
       <ul class="text-sm space-y-1">
         <li>
@@ -78,9 +45,12 @@
         </li>
 
         {% for folder in folders %}
-          {% if not folder.parent %}
-            {% include "documents/_folder_node.html" with folder=folder %}
-          {% endif %}
+        <li>
+          <a href="{% url 'documents:document_list' %}?folder={{ folder.id }}"
+             class="{% if active_folder == folder.id %}font-semibold text-blue-600{% endif %}">
+            {{ folder.name }}
+          </a>
+        </li>
         {% endfor %}
       </ul>
     </aside>
@@ -115,11 +85,7 @@
 
         <div class="space-y-3">
           {% for doc in documents %}
-          <div class="p-4 border rounded flex flex-col md:flex-row md:justify-between gap-3
-                      cursor-move"
-               draggable="{% if request.user.is_staff or doc.uploaded_by == request.user %}true{% else %}false{% endif %}"
-               data-document-id="{{ doc.id }}"
-               ondragstart="window.dragDocument(event)">
+          <div class="p-4 border rounded flex flex-col md:flex-row md:justify-between gap-3">
 
             <div class="flex gap-3 items-start">
               {% if request.user.is_staff or doc.uploaded_by == request.user %}
@@ -131,12 +97,7 @@
 
               <div class="flex flex-col">
                 <a href="{% url 'chat_view' %}?doc={{ doc.id }}"
-                   class="rounded px-2 py-1 text-sm
-                   {% if doc.id|stringformat:'s' == active_document|stringformat:'s' %}
-                     bg-blue-100 text-blue-800 font-semibold border-l-4 border-blue-500
-                   {% else %}
-                     hover:bg-gray-100
-                   {% endif %}">
+                   class="rounded px-2 py-1 text-sm hover:bg-gray-100">
                   📄 {{ doc.title|default:doc.file.name|cut:"documents/" }}
                 </a>
 
@@ -148,7 +109,9 @@
               </div>
             </div>
 
+            <!-- ACTIONS -->
             <div class="flex gap-4 text-sm items-center">
+
               <a href="{% url 'chat_view' %}?doc={{ doc.id }}"
                  class="text-green-600 hover:underline font-medium">
                 💬 Chat
@@ -160,21 +123,35 @@
               </a>
 
               {% if request.user.is_staff or doc.uploaded_by == request.user %}
+              <!-- MOVE TO FOLDER -->
+              <select
+                class="move-select border rounded px-2 py-1 text-xs"
+                data-doc-id="{{ doc.id }}">
+                <option value="">📁 Root</option>
+                {% for folder in folders %}
+                  <option value="{{ folder.id }}"
+                    {% if doc.folder and doc.folder.id == folder.id %}selected{% endif %}>
+                    {{ folder.name }}
+                  </option>
+                {% endfor %}
+              </select>
+
               <a href="{% url 'documents:delete_document' doc.id %}"
                  onclick="return confirm('Delete document?')"
                  class="text-red-600 hover:underline">
                 Delete
               </a>
               {% endif %}
+
             </div>
           </div>
           {% endfor %}
         </div>
       </form>
       {% else %}
-        <div class="text-center py-12 border rounded bg-gray-50">
-          <p class="text-gray-500">No documents found.</p>
-        </div>
+      <div class="text-center py-12 border rounded bg-gray-50">
+        <p class="text-gray-500">No documents found.</p>
+      </div>
       {% endif %}
     </section>
 
@@ -182,56 +159,79 @@
 </div>
 
 <!-- =========================
-     USER FLAGS
+     SCRIPTS
 ========================== -->
 <script>
-  const userIsStaff = {{ request.user.is_staff|yesno:"true,false" }};
-  const userRole = "{{ request.user.profile.role|default:'' }}";
+function getCSRFToken() {
+  return document.querySelector("[name=csrfmiddlewaretoken]").value;
+}
 </script>
 
-<!-- =========================
-     DRAG + BULK SELECT
-========================== -->
 <script>
-  window.draggedDocumentIds = [];
+// Move document AJAX
+document.querySelectorAll(".move-select").forEach(select => {
+  select.addEventListener("change", function () {
 
-  window.dragDocument = function (ev) {
-    if (!(userIsStaff || userRole === "premium")) return;
+    const docId = this.dataset.docId;
+    const folderId = this.value;
 
-    const checked = document.querySelectorAll(".doc-checkbox:checked");
-    window.draggedDocumentIds = checked.length
-      ? Array.from(checked).map(cb => cb.value)
-      : [ev.currentTarget.dataset.documentId];
-
-    ev.dataTransfer.setData("text/plain", "documents");
-  };
-
-  document.getElementById("selectAll")?.addEventListener("change", e => {
-    document.querySelectorAll(".doc-checkbox")
-      .forEach(cb => cb.checked = e.target.checked);
-    updateDeleteButton();
-  });
-
-  document.querySelectorAll(".doc-checkbox").forEach(cb => {
-    cb.addEventListener("change", updateDeleteButton);
-  });
-
-  function updateDeleteButton() {
-    const btn = document.getElementById("bulk-delete-btn");
-    if (!btn) return;
-    btn.disabled = !document.querySelector(".doc-checkbox:checked");
-  }
-
-  function undoFolderMove() {
-    fetch("/documents/folders/undo-move/", {
+    fetch("{% url 'documents:move_document' %}", {
       method: "POST",
-      headers: { "X-CSRFToken": getCSRFToken() }
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "X-CSRFToken": getCSRFToken(),
+      },
+      body: new URLSearchParams({
+        doc_id: docId,
+        folder_id: folderId
+      })
     })
-    .then(r => r.json())
-    .then(d => {
-      if (d.success) location.reload();
-      else alert(d.error || "Nothing to undo");
-    });
-  }
+    .then(res => res.json())
+    .then(data => {
+      if (!data.success) {
+        alert(data.error || "Move failed");
+      } else {
+        // Optional: remove from current folder view instantly
+        const currentFolder = "{{ active_folder|default:'' }}";
+        if (currentFolder && folderId !== currentFolder) {
+          this.closest("div.p-4").remove();
+        }
+      }
+    })
+    .catch(() => alert("Move failed"));
+  });
+});
 </script>
+
+<script>
+// Bulk select
+document.getElementById("selectAll")?.addEventListener("change", e => {
+  document.querySelectorAll(".doc-checkbox")
+    .forEach(cb => cb.checked = e.target.checked);
+  updateDeleteButton();
+});
+
+document.querySelectorAll(".doc-checkbox").forEach(cb => {
+  cb.addEventListener("change", updateDeleteButton);
+});
+
+function updateDeleteButton() {
+  const btn = document.getElementById("bulk-delete-btn");
+  if (!btn) return;
+  btn.disabled = !document.querySelector(".doc-checkbox:checked");
+}
+
+function undoFolderMove() {
+  fetch("/documents/folders/undo-move/", {
+    method: "POST",
+    headers: { "X-CSRFToken": getCSRFToken() }
+  })
+  .then(r => r.json())
+  .then(d => {
+    if (d.success) location.reload();
+    else alert(d.error || "Nothing to undo");
+  });
+}
+</script>
+
 {% endblock %}

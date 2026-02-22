@@ -6,6 +6,7 @@ from django.db.models import Q
 from django.contrib.postgres.search import SearchQuery, SearchRank
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
+from django.views.decorators.http import require_POST
 
 from documents.models import Document, Folder
 from documents.utils import get_accessible_documents
@@ -89,6 +90,7 @@ def document_list(request):
 @require_http_methods(["GET", "POST"])
 def document_upload(request):
     user = request.user
+    MAX_SIZE = 15 * 1024 * 1024  # 15MB per file
 
     member = (
         OrganizationMember.objects
@@ -102,7 +104,7 @@ def document_upload(request):
 
     if request.method == "POST":
         files = request.FILES.getlist("files")
-        folder_id = request.POST.get("folder")  # 👈 GET SELECTED FOLDER
+        folder_id = request.POST.get("folder")
 
         if not files:
             return JsonResponse(
@@ -110,7 +112,18 @@ def document_upload(request):
                 status=400,
             )
 
-        # 👇 Resolve folder safely
+        # 🔒 BLOCK FILES OVER 15MB (BACKEND ENFORCEMENT)
+        for f in files:
+            if f.size > MAX_SIZE:
+                return JsonResponse(
+                    {
+                        "success": False,
+                        "error": f"{f.name} exceeds 15MB limit."
+                    },
+                    status=400,
+                )
+
+        # 📁 Resolve folder safely
         selected_folder = None
         if folder_id:
             try:
@@ -119,20 +132,23 @@ def document_upload(request):
                     uploaded_by=user
                 )
             except Folder.DoesNotExist:
-                selected_folder = None
+                return JsonResponse(
+                    {"success": False, "error": "Invalid folder selected."},
+                    status=400,
+                )
 
         try:
             for f in files:
 
                 # =========================
-                # 💾 STEP 1: SAVE DOCUMENT FIRST (NOW WITH FOLDER)
+                # 💾 STEP 1: SAVE DOCUMENT
                 # =========================
                 doc = Document.objects.create(
                     uploaded_by=user,
                     organization=None if user.is_superuser else member.organization,
                     is_public=user.is_superuser,
                     file=f,
-                    folder=selected_folder,  # 👈 THIS WAS MISSING
+                    folder=selected_folder,
                 )
 
                 # =========================
@@ -370,39 +386,48 @@ def delete_folder(request, folder_id):
     return redirect("documents:document_list")
 
 @login_required
+@require_POST
 def move_document(request):
-    if request.method != "POST":
-        return HttpResponseForbidden("Invalid request")
+    user = request.user
 
     doc_id = request.POST.get("doc_id")
     folder_id = request.POST.get("folder_id")
 
     if not doc_id:
-        return JsonResponse({"success": False, "error": "Invalid document."})
+        return JsonResponse(
+            {"success": False, "error": "Invalid document."},
+            status=400,
+        )
 
-    document = get_object_or_404(Document, id=doc_id)
+    # 🔒 Only fetch documents user owns (or superuser)
+    if user.is_superuser:
+        document = get_object_or_404(Document, id=doc_id)
+    else:
+        document = get_object_or_404(
+            Document,
+            id=doc_id,
+            uploaded_by=user
+        )
 
-    # Permission check
-    if not (
-        request.user.is_superuser or
-        document.uploaded_by == request.user
-    ):
-        return HttpResponseForbidden("Not allowed")
-
-    # Allow moving to root (no folder)
+    # =========================
+    # 📂 Move to Root (No Folder)
+    # =========================
     if not folder_id:
         document.folder = None
         document.save(update_fields=["folder"])
         return JsonResponse({"success": True})
 
-    # Validate target folder ownership
-    folder = Folder.objects.filter(
-        id=folder_id,
-        uploaded_by=request.user
-    ).first()
-
-    if not folder:
-        return JsonResponse({"success": False, "error": "Invalid folder."})
+    # =========================
+    # 📁 Validate Folder Ownership
+    # =========================
+    if user.is_superuser:
+        folder = get_object_or_404(Folder, id=folder_id)
+    else:
+        folder = get_object_or_404(
+            Folder,
+            id=folder_id,
+            uploaded_by=user
+        )
 
     document.folder = folder
     document.save(update_fields=["folder"])

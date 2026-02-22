@@ -162,18 +162,31 @@
 
   // ✅ IMPROVED showFiles()
   function showFiles() {
-    if (fileInput.files.length === 0) {
-      fileList.innerText = "";
-      return;
-    }
-
-    const names = [...fileInput.files].map(f => {
-      const sizeMB = (f.size / (1024 * 1024)).toFixed(2);
-      return `${f.name} (${sizeMB} MB)`;
-    });
-
-    fileList.innerText = names.join(" | ");
+  if (fileInput.files.length === 0) {
+    fileList.innerText = "";
+    return;
   }
+
+  const MAX_SIZE = 15 * 1024 * 1024; // 15MB
+  let validFiles = [];
+  let messages = [];
+
+  [...fileInput.files].forEach(file => {
+    if (file.size > MAX_SIZE) {
+      messages.push(`${file.name} ❌ exceeds 15MB`);
+    } else {
+      validFiles.push(file);
+      const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+      messages.push(`${file.name} (${sizeMB} MB)`);
+    }
+  });
+
+  if (validFiles.length !== fileInput.files.length) {
+    showToast("Some files exceeded 15MB and were ignored.");
+  }
+
+  fileList.innerText = messages.join(" | ");
+}
 
   // AJAX Upload
   form.addEventListener("submit", e => {
