@@ -5,9 +5,7 @@
 {% block content %}
 <div class="max-w-7xl mx-auto px-4">
 
-  <!-- =========================
-       HEADER
-  ========================== -->
+  <!-- HEADER -->
   <div class="flex justify-between items-center mb-4">
     <h2 class="text-2xl font-semibold">📄 Documents</h2>
 
@@ -30,9 +28,7 @@
 
   <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
 
-    <!-- =========================
-         FOLDER TREE
-    ========================== -->
+    <!-- FOLDER TREE -->
     <aside class="border rounded p-3 bg-white">
       <h3 class="text-sm font-semibold mb-2">📁 Folders</h3>
 
@@ -47,7 +43,7 @@
         {% for folder in folders %}
         <li>
           <a href="{% url 'documents:document_list' %}?folder={{ folder.id }}"
-             class="{% if active_folder == folder.id %}font-semibold text-blue-600{% endif %}">
+             class="{% if active_folder and active_folder.id == folder.id %}font-semibold text-blue-600{% endif %}">
             {{ folder.name }}
           </a>
         </li>
@@ -55,16 +51,30 @@
       </ul>
     </aside>
 
-    <!-- =========================
-         DOCUMENT LIST
-    ========================== -->
+    <!-- DOCUMENT LIST -->
     <section class="md:col-span-3">
+
+      <!-- FOLDER + RAG TOGGLE -->
+      {% if active_folder %}
+      <div class="mb-4 p-3 border border-indigo-200 bg-indigo-50 rounded-lg flex justify-between items-center text-sm">
+        <div>
+          📁 <strong>Current Folder:</strong> {{ active_folder.name }}
+        </div>
+
+        <label class="flex items-center gap-2">
+          <input type="checkbox"
+                 id="restrictRag"
+                 {% if restrict_rag %}checked{% endif %}>
+          🔒 Restrict RAG to this folder
+        </label>
+      </div>
+      {% endif %}
 
       {% if documents %}
       <form method="post" action="{% url 'documents:bulk_delete_documents' %}">
         {% csrf_token %}
 
-        <!-- ACTION BAR -->
+        <!-- BULK ACTIONS -->
         {% if request.user.is_staff or request.user.profile.role == "premium" %}
         <div class="flex items-center justify-between mb-3">
           <label class="flex items-center gap-2 text-sm">
@@ -96,7 +106,7 @@
               {% endif %}
 
               <div class="flex flex-col">
-                <a href="{% url 'chat_view' %}?doc={{ doc.id }}"
+                <a href="{% url 'chat_view' %}?doc={{ doc.id }}{% if active_folder %}&folder={{ active_folder.id }}{% endif %}"
                    class="rounded px-2 py-1 text-sm hover:bg-gray-100">
                   📄 {{ doc.title|default:doc.file.name|cut:"documents/" }}
                 </a>
@@ -112,7 +122,7 @@
             <!-- ACTIONS -->
             <div class="flex gap-4 text-sm items-center">
 
-              <a href="{% url 'chat_view' %}?doc={{ doc.id }}"
+              <a href="{% url 'chat_view' %}?doc={{ doc.id }}{% if active_folder %}&folder={{ active_folder.id }}{% endif %}"
                  class="text-green-600 hover:underline font-medium">
                 💬 Chat
               </a>
@@ -123,7 +133,7 @@
               </a>
 
               {% if request.user.is_staff or doc.uploaded_by == request.user %}
-              <!-- MOVE TO FOLDER -->
+              <!-- MOVE -->
               <select
                 class="move-select border rounded px-2 py-1 text-xs"
                 data-doc-id="{{ doc.id }}">
@@ -142,7 +152,6 @@
                 Delete
               </a>
               {% endif %}
-
             </div>
           </div>
           {% endfor %}
@@ -168,7 +177,23 @@ function getCSRFToken() {
 </script>
 
 <script>
-// Move document AJAX
+// Restrict RAG toggle
+document.getElementById("restrictRag")?.addEventListener("change", function() {
+  fetch("{% url 'documents:toggle_rag' %}", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      "X-CSRFToken": getCSRFToken(),
+    },
+    body: new URLSearchParams({
+      value: this.checked
+    })
+  });
+});
+</script>
+
+<script>
+// Move document
 document.querySelectorAll(".move-select").forEach(select => {
   select.addEventListener("change", function () {
 
@@ -191,17 +216,14 @@ document.querySelectorAll(".move-select").forEach(select => {
       if (!data.success) {
         alert(data.error || "Move failed");
       } else {
-        // Optional: remove from current folder view instantly
-        const currentFolder = "{{ active_folder|default:'' }}";
+        const currentFolder = "{{ active_folder.id|default:'' }}";
         if (currentFolder && folderId !== currentFolder) {
           this.closest("div.p-4").remove();
         }
       }
-    })
-    .catch(() => alert("Move failed"));
+    });
   });
 });
-
 </script>
 
 <script>
@@ -233,20 +255,6 @@ function undoFolderMove() {
     else alert(d.error || "Nothing to undo");
   });
 }
-</script>
-<script>
-document.getElementById("restrictRag")?.addEventListener("change", function() {
-  fetch("{% url 'documents:toggle_rag' %}", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-      "X-CSRFToken": getCSRFToken(),
-    },
-    body: new URLSearchParams({
-      value: this.checked
-    })
-  });
-});
 </script>
 
 {% endblock %}
