@@ -20,6 +20,7 @@ from rag.utils import create_onboarding_chat
 from rag.retriever import retrieve_chunks
 from rag.rag_pipeline import rag_answer
 from accounts.models import OrganizationMember
+from documents.models import Folder
 
 
 # =====================================================
