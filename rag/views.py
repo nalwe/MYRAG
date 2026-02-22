@@ -62,12 +62,11 @@ def chat_view(request, session_id=None):
     if not allowed:
         return HttpResponseForbidden(error)
 
-    # 🧠 Ensure onboarding session exists
     create_onboarding_chat(user)
 
     sessions = ChatSession.objects.filter(user=user).order_by("-created_at")
 
-    # 💬 Get or create session
+    # Get or create session
     if session_id:
         session = get_object_or_404(ChatSession, id=session_id, user=user)
     else:
@@ -76,7 +75,25 @@ def chat_view(request, session_id=None):
     messages = session.messages.order_by("created_at")
 
     # =====================================================
-    # 📄 Active document (optional single-document scope)
+    # 📁 FOLDER CONTEXT (PERSISTENT)
+    # =====================================================
+    folder_id = request.GET.get("folder")
+
+    # If folder passed in URL → store it in session
+    if folder_id:
+        request.session["active_folder_id"] = folder_id
+
+    active_folder = None
+    session_folder_id = request.session.get("active_folder_id")
+
+    if session_folder_id:
+        active_folder = Folder.objects.filter(
+            id=session_folder_id,
+            uploaded_by=user
+        ).first()
+
+    # =====================================================
+    # 📄 Document context
     # =====================================================
     doc_id = request.GET.get("doc")
     active_document = None
@@ -88,26 +105,17 @@ def chat_view(request, session_id=None):
             active_document = None
 
     # =====================================================
-    # 📁 Folder-based restriction (session toggle)
+    # 🔒 Restriction toggle (independent)
     # =====================================================
     restrict_rag = request.session.get("restrict_rag", False)
-    folder_id = request.GET.get("folder")
-    active_folder = None
-
-    if restrict_rag and folder_id:
-        active_folder = Folder.objects.filter(
-            id=folder_id,
-            uploaded_by=user
-        ).first()
 
     # =====================================================
-    # ✉️ Handle message submission
+    # HANDLE MESSAGE
     # =====================================================
     if request.method == "POST":
         query = request.POST.get("query", "").strip()
 
         if query:
-            # 💾 Save user message
             ChatMessage.objects.create(
                 session=session,
                 role="user",
@@ -115,10 +123,9 @@ def chat_view(request, session_id=None):
             )
 
             # ===============================
-            # 🔎 Retrieval Logic
+            # RETRIEVAL LOGIC
             # ===============================
             if active_document:
-                # 📄 Single document scope
                 retrieved = retrieve_chunks(
                     user=user,
                     query=query,
@@ -126,8 +133,7 @@ def chat_view(request, session_id=None):
                     k=5,
                 )
 
-            elif active_folder:
-                # 📁 Folder-restricted scope
+            elif restrict_rag and active_folder:
                 folder_docs = get_accessible_documents(user).filter(
                     folder=active_folder
                 )
@@ -140,7 +146,6 @@ def chat_view(request, session_id=None):
                 )
 
             else:
-                # 🌍 Global scope
                 retrieved = retrieve_chunks(
                     user=user,
                     query=query,
@@ -149,7 +154,6 @@ def chat_view(request, session_id=None):
 
             retrieved_texts = [r["text"] for r in retrieved]
 
-            # 🤖 Generate grounded answer
             answer_md = rag_answer(
                 question=query,
                 chunks=retrieved,
@@ -160,7 +164,6 @@ def chat_view(request, session_id=None):
                 extensions=["extra", "sane_lists"]
             )
 
-            # 📚 Collect unique source documents
             source_docs = {}
             for r in retrieved:
                 source_docs[r["document_id"]] = r["document_title"]
@@ -170,7 +173,6 @@ def chat_view(request, session_id=None):
                 for doc_id, title in source_docs.items()
             ]
 
-            # 💾 Save assistant message
             ChatMessage.objects.create(
                 session=session,
                 role="assistant",
@@ -178,26 +180,14 @@ def chat_view(request, session_id=None):
                 sources={
                     "documents": formatted_sources,
                     "chunks": retrieved_texts,
-                    "restricted_to_folder": active_folder.id if active_folder else None,
+                    "restricted_to_folder": active_folder.id if restrict_rag and active_folder else None,
                 },
             )
 
-        # 🔁 Preserve scope in redirect
-        redirect_url = reverse("chat_session", args=[session.id])
-
-        params = []
-        if active_document:
-            params.append(f"doc={active_document.id}")
-        if active_folder:
-            params.append(f"folder={active_folder.id}")
-
-        if params:
-            redirect_url += "?" + "&".join(params)
-
-        return redirect(redirect_url)
+        return redirect("chat_session", session_id=session.id)
 
     # =====================================================
-    # 🖥️ Render chat
+    # RENDER
     # =====================================================
     return render(
         request,
