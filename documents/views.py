@@ -102,6 +102,18 @@ def document_list(request):
     )
 
 
+
+from django.views.decorators.http import require_POST
+from django.http import JsonResponse
+
+@login_required
+@require_POST
+def toggle_rag_restriction(request):
+    value = request.POST.get("value") == "true"
+    request.session["restrict_rag"] = value
+    return JsonResponse({"success": True})
+
+
 # =========================
 # 📤 UPLOAD DOCUMENT
 # =========================

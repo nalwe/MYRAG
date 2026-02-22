@@ -201,6 +201,7 @@ document.querySelectorAll(".move-select").forEach(select => {
     .catch(() => alert("Move failed"));
   });
 });
+
 </script>
 
 <script>
@@ -232,6 +233,20 @@ function undoFolderMove() {
     else alert(d.error || "Nothing to undo");
   });
 }
+</script>
+<script>
+document.getElementById("restrictRag")?.addEventListener("change", function() {
+  fetch("{% url 'documents:toggle_rag' %}", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      "X-CSRFToken": getCSRFToken(),
+    },
+    body: new URLSearchParams({
+      value: this.checked
+    })
+  });
+});
 </script>
 
 {% endblock %}

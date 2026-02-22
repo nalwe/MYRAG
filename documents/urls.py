@@ -22,4 +22,10 @@ urlpatterns = [
 
     # MOVE
     path("move/", views.move_document, name="move_document"),
+
+    path(
+    "toggle-rag/",
+    views.toggle_rag_restriction,
+    name="toggle_rag"
+),
 ]
