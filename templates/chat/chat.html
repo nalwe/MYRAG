@@ -90,19 +90,30 @@
       </div>
     {% endif %}
 
-    {% if active_folder and restrict_rag and not active_document %}
-      <div class="mx-6 mt-4 p-3 border border-indigo-200 bg-indigo-50 rounded-lg text-sm flex justify-between items-center">
-        <div>
-          🔒 <strong>RAG Restricted to Folder:</strong>
-          {{ active_folder.name }}
-        </div>
+   {% if active_folder and not active_document %}
+  <div class="mx-6 mt-4 p-3 rounded-lg text-sm flex justify-between items-center
+      {% if restrict_rag %}
+        border border-indigo-200 bg-indigo-50
+      {% else %}
+        border border-gray-200 bg-gray-50
+      {% endif %}">
 
-        <a href="{% url 'chat_view' active_session.id %}"
-           class="text-xs text-indigo-600 hover:underline">
-          Disable Restriction
-        </a>
-      </div>
-    {% endif %}
+    <div>
+      📁 <strong>Folder:</strong> {{ active_folder.name }}
+
+      {% if restrict_rag %}
+        <span class="ml-2 text-xs px-2 py-0.5 rounded bg-indigo-100 text-indigo-700">
+          Restricted Mode ON
+        </span>
+      {% else %}
+        <span class="ml-2 text-xs px-2 py-0.5 rounded bg-gray-200 text-gray-600">
+          Global Mode
+        </span>
+      {% endif %}
+    </div>
+
+  </div>
+{% endif %}
 
     <!-- =========================
          MESSAGES
