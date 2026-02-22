@@ -74,9 +74,9 @@ def chat_view(request, session_id=None):
 
     messages = session.messages.order_by("created_at")
 
-    # =====================================================
-    # 📁 FOLDER CONTEXT (PERSISTENT)
-    # =====================================================
+   # =====================================================
+# 📁 FOLDER CONTEXT (PERSISTENT)
+# =====================================================
     folder_id = request.GET.get("folder")
 
     # If folder passed in URL → store it in session
@@ -87,10 +87,14 @@ def chat_view(request, session_id=None):
     session_folder_id = request.session.get("active_folder_id")
 
     if session_folder_id:
-        active_folder = Folder.objects.filter(
-            id=session_folder_id,
-            uploaded_by=user
-        ).first()
+        try:
+            active_folder = Folder.objects.get(
+                id=int(session_folder_id),
+                uploaded_by=user
+            )
+        except (Folder.DoesNotExist, ValueError):
+            active_folder = None
+    
 
     # =====================================================
     # 📄 Document context
