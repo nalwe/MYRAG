@@ -1,8 +1,12 @@
 {% extends "base.html" %}
 {% block title %}Chat{% endblock %}
 {% block content %}
-<div style="background:yellow">
-  Folder: {{ active_folder }}
+<div class="folder-indicator">
+    {% if active_folder %}
+        📁 {{ active_folder.name }}
+    {% else %}
+        📂 All Documents
+    {% endif %}
 </div>
 
 <div class="flex h-screen bg-gradient-to-b from-gray-50 to-gray-100">
