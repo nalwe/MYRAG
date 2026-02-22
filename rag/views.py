@@ -75,7 +75,9 @@ def chat_view(request, session_id=None):
 
     messages = session.messages.order_by("created_at")
 
-    # 📄 Active document (optional scope)
+    # =====================================================
+    # 📄 Active document (optional single-document scope)
+    # =====================================================
     doc_id = request.GET.get("doc")
     active_document = None
 
@@ -85,7 +87,22 @@ def chat_view(request, session_id=None):
         except Document.DoesNotExist:
             active_document = None
 
+    # =====================================================
+    # 📁 Folder-based restriction (session toggle)
+    # =====================================================
+    restrict_rag = request.session.get("restrict_rag", False)
+    folder_id = request.GET.get("folder")
+    active_folder = None
+
+    if restrict_rag and folder_id:
+        active_folder = Folder.objects.filter(
+            id=folder_id,
+            uploaded_by=user
+        ).first()
+
+    # =====================================================
     # ✉️ Handle message submission
+    # =====================================================
     if request.method == "POST":
         query = request.POST.get("query", "").strip()
 
@@ -97,17 +114,33 @@ def chat_view(request, session_id=None):
                 content=query,
             )
 
-            # 🔎 Retrieve chunks (Smart Mode)
+            # ===============================
+            # 🔎 Retrieval Logic
+            # ===============================
             if active_document:
-                # Document-specific search
+                # 📄 Single document scope
                 retrieved = retrieve_chunks(
                     user=user,
                     query=query,
                     document_ids=[active_document.id],
                     k=5,
                 )
+
+            elif active_folder:
+                # 📁 Folder-restricted scope
+                folder_docs = get_accessible_documents(user).filter(
+                    folder=active_folder
+                )
+
+                retrieved = retrieve_chunks(
+                    user=user,
+                    query=query,
+                    document_ids=list(folder_docs.values_list("id", flat=True)),
+                    k=5,
+                )
+
             else:
-                # Global search (auto-select best docs)
+                # 🌍 Global scope
                 retrieved = retrieve_chunks(
                     user=user,
                     query=query,
@@ -115,9 +148,6 @@ def chat_view(request, session_id=None):
                 )
 
             retrieved_texts = [r["text"] for r in retrieved]
-
-            # 🧠 Build context
-            #context = "\n\n---\n\n".join(retrieved_texts)
 
             # 🤖 Generate grounded answer
             answer_md = rag_answer(
@@ -148,18 +178,27 @@ def chat_view(request, session_id=None):
                 sources={
                     "documents": formatted_sources,
                     "chunks": retrieved_texts,
+                    "restricted_to_folder": active_folder.id if active_folder else None,
                 },
             )
 
-        # 🔁 Preserve document filter
+        # 🔁 Preserve scope in redirect
+        redirect_url = reverse("chat_session", args=[session.id])
+
+        params = []
         if active_document:
-            return redirect(
-                f"{reverse('chat_session', args=[session.id])}?doc={active_document.id}"
-            )
+            params.append(f"doc={active_document.id}")
+        if active_folder:
+            params.append(f"folder={active_folder.id}")
 
-        return redirect("chat_session", session_id=session.id)
+        if params:
+            redirect_url += "?" + "&".join(params)
 
+        return redirect(redirect_url)
+
+    # =====================================================
     # 🖥️ Render chat
+    # =====================================================
     return render(
         request,
         "chat/chat.html",
@@ -168,6 +207,8 @@ def chat_view(request, session_id=None):
             "active_session": session,
             "messages": messages,
             "active_document": active_document,
+            "active_folder": active_folder,
+            "restrict_rag": restrict_rag,
         },
     )
 

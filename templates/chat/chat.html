@@ -72,23 +72,34 @@
       </div>
     </header>
 
-    <!-- DOCUMENT BAR -->
+    <!-- =========================
+         SCOPE INDICATORS
+    ========================== -->
+
     {% if active_document %}
       <div class="mx-6 mt-4 p-3 border border-blue-200 bg-blue-50 rounded-lg text-sm flex justify-between items-center">
         <div>
-          📄 <strong>Selected:</strong>
+          📄 <strong>Document Mode:</strong>
           {{ active_document.display_name }}
-
-          {% if active_document.is_public %}
-            <span class="ml-2 text-xs px-2 py-0.5 rounded bg-green-100 text-green-700">
-              Public
-            </span>
-          {% endif %}
         </div>
 
-        <a href="{% url 'chat_view' %}"
+        <a href="{% url 'chat_view' active_session.id %}"
            class="text-xs text-blue-600 hover:underline">
           Clear
+        </a>
+      </div>
+    {% endif %}
+
+    {% if active_folder and restrict_rag and not active_document %}
+      <div class="mx-6 mt-4 p-3 border border-indigo-200 bg-indigo-50 rounded-lg text-sm flex justify-between items-center">
+        <div>
+          🔒 <strong>RAG Restricted to Folder:</strong>
+          {{ active_folder.name }}
+        </div>
+
+        <a href="{% url 'chat_view' active_session.id %}"
+           class="text-xs text-indigo-600 hover:underline">
+          Disable Restriction
         </a>
       </div>
     {% endif %}
@@ -157,7 +168,7 @@
             Legal AI Assistant
           </h2>
           <p class="max-w-md text-sm">
-            Ask questions about your documents or select a public document to begin.
+            Ask questions about your documents. You can restrict answers to a specific folder or document.
           </p>
         </div>
       {% endif %}
@@ -181,6 +192,10 @@
 
       {% if active_document %}
         <input type="hidden" name="doc" value="{{ active_document.id }}">
+      {% endif %}
+
+      {% if active_folder and restrict_rag %}
+        <input type="hidden" name="folder" value="{{ active_folder.id }}">
       {% endif %}
 
       <div class="flex gap-3 items-center">

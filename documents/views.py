@@ -33,28 +33,43 @@ import os
 # 📄 DOCUMENT LIST
 # =========================
 
+from django.contrib.postgres.search import SearchQuery, SearchRank
+from django.db.models import Q
+from django.contrib.auth.decorators import login_required
+
+
 @login_required
 def document_list(request):
     user = request.user
     folder_id = request.GET.get("folder")
     query = request.GET.get("q", "").strip()
 
+    # =========================
+    # BASE QUERYSET
+    # =========================
     if user.is_superuser:
         documents = Document.objects.all()
         folders = Folder.objects.all()
     else:
         documents = get_accessible_documents(user)
-        folders = Folder.objects.filter(user=user)
+        folders = Folder.objects.filter(uploaded_by=user)
 
     active_folder = None
 
+    # =========================
+    # FOLDER FILTER
+    # =========================
     if folder_id:
         active_folder = folders.filter(id=folder_id).first()
         if active_folder:
-            documents = documents.filter(folder_id=folder_id)
+            documents = documents.filter(folder_id=active_folder.id)
 
+    # =========================
+    # SEARCH (Scoped if folder selected)
+    # =========================
     if query:
         search_query = SearchQuery(query, config="english")
+
         documents = (
             documents
             .annotate(rank=SearchRank("search_vector", search_query))
@@ -69,6 +84,11 @@ def document_list(request):
     else:
         documents = documents.order_by("-created_at")
 
+    # =========================
+    # RAG RESTRICTION FLAG (Session)
+    # =========================
+    restrict_rag = request.session.get("restrict_rag", False)
+
     return render(
         request,
         "documents/list.html",
@@ -77,6 +97,7 @@ def document_list(request):
             "folders": folders,
             "active_folder": active_folder,
             "query": query,
+            "restrict_rag": restrict_rag,
         }
     )
 
