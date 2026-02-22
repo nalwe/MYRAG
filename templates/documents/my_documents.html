@@ -9,7 +9,7 @@
     <h2 class="font-semibold mb-3">📂 Folders</h2>
 
     <!-- ALL DOCUMENTS -->
-    <a href="{% url 'documents:document_list' %}"
+    <a href="{% url 'documents:my_documents' %}"
        class="block px-3 py-2 rounded mb-1
        {% if not active_folder %}bg-blue-100{% else %}hover:bg-gray-100{% endif %}">
       📁 All Documents
@@ -19,7 +19,11 @@
     {% for folder in folders %}
       <a href="?folder={{ folder.id }}"
          class="block px-3 py-2 rounded mb-1
-         {% if active_folder == folder.id %}bg-blue-100{% else %}hover:bg-gray-100{% endif %}">
+         {% if active_folder and active_folder.id == folder.id %}
+           bg-blue-100
+         {% else %}
+           hover:bg-gray-100
+         {% endif %}">
         📂 {{ folder.name }}
       </a>
     {% empty %}
@@ -34,14 +38,9 @@
 
     <!-- ================= HEADER ================= -->
     <div class="flex justify-between items-center mb-6">
-      <h1 class="text-2xl font-bold">📄 Documents</h1>
+      <h1 class="text-2xl font-bold">📄 My Documents</h1>
 
       <div class="flex gap-3">
-        <a href="{% url 'documents:my_documents' %}"
-           class="px-4 py-2 border rounded text-sm hover:bg-gray-100">
-          📁 My Documents
-        </a>
-
         <a href="{% url 'documents:document_upload' %}"
            class="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700">
           ➕ Upload
@@ -52,7 +51,7 @@
     <!-- ================= SEARCH ================= -->
     <form method="get" class="mb-6 flex gap-2">
       {% if active_folder %}
-        <input type="hidden" name="folder" value="{{ active_folder }}">
+        <input type="hidden" name="folder" value="{{ active_folder.id }}">
       {% endif %}
 
       <input
@@ -70,7 +69,11 @@
       </button>
 
       {% if query %}
-        <a href="{% if active_folder %}?folder={{ active_folder }}{% else %}{% url 'document_list' %}{% endif %}"
+        <a href="{% if active_folder %}
+                    ?folder={{ active_folder.id }}
+                  {% else %}
+                    {% url 'documents:my_documents' %}
+                  {% endif %}"
            class="px-4 py-2 border rounded text-sm hover:bg-gray-100">
           ✖ Clear
         </a>
@@ -107,7 +110,8 @@
             <!-- ACTIONS -->
             <div class="flex items-center gap-4 text-sm">
 
-              <a href="{% url 'chat_view' %}?doc={{ doc.id }}"
+              <!-- ✅ FIXED CHAT LINK -->
+              <a href="{% url 'chat_view' %}?doc={{ doc.id }}{% if active_folder %}&folder={{ active_folder.id }}{% endif %}"
                  class="text-blue-600 hover:underline">
                 💬 Chat
               </a>
