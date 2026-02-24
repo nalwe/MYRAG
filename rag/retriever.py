@@ -1,13 +1,12 @@
-import numpy as np
 from django.db.models import Q
+from pgvector.django import L2Distance
 
+from documents.models import Document, DocumentChunk
 from .embeddings import embed_texts
-from .faiss_utils import load_or_create_index
-from documents.models import Document
 
 
 # =========================================================
-# 🔹 CORE RETRIEVER (GLOBAL + CONTEXT MODE)
+# 🔹 CORE RETRIEVER (Postgres + pgvector)
 # =========================================================
 def retrieve_chunks(
     user,
@@ -18,7 +17,7 @@ def retrieve_chunks(
     public_only=False,
 ):
     """
-    Semantic retrieval with FAISS.
+    Semantic retrieval using pgvector (PostgreSQL).
 
     Modes:
     - Context mode: document_ids or folder_ids provided
@@ -29,7 +28,6 @@ def retrieve_chunks(
     # 🔹 Embed Query
     # -----------------------------------------------------
     query_embedding = embed_texts([query])[0]
-    results = []
 
     # -----------------------------------------------------
     # 🔐 Accessible Documents
@@ -48,60 +46,36 @@ def retrieve_chunks(
         docs_qs = docs_qs.filter(folder_id__in=folder_ids)
 
     # Optional: limit number of docs searched (scalability)
-    docs_qs = docs_qs[:30]
+    docs_qs = docs_qs[:50]
 
     # -----------------------------------------------------
-    # 🔍 Search Each Document Index
+    # 🔍 Vector Similarity Search (Across Chunks)
     # -----------------------------------------------------
-    for doc in docs_qs:
-        index_name = f"doc_{doc.id}"
-        index, chunks = load_or_create_index(index_name)
-
-        if index.ntotal == 0:
-            continue
-
-        D, I = index.search(
-            np.array([query_embedding]),
-            min(k, index.ntotal)
-        )
-
-        for rank, idx in enumerate(I[0]):
-            if idx < len(chunks):
-                results.append({
-                    "text": chunks[idx],
-                    "document_id": doc.id,
-                    "document_title": doc.title,
-                    "score": float(D[0][rank]),  # Lower = better (L2 distance)
-                })
+    chunks = (
+        DocumentChunk.objects
+        .filter(document__in=docs_qs)
+        .annotate(distance=L2Distance("embedding", query_embedding))
+        .order_by("distance")[:k]
+    )
 
     # -----------------------------------------------------
-    # 🔝 Global Ranking
+    # 🔁 Format Results
     # -----------------------------------------------------
-    results.sort(key=lambda x: x["score"])
+    results = [
+        {
+            "text": chunk.content,
+            "document_id": chunk.document.id,
+            "document_title": chunk.document.display_name,
+            "score": float(chunk.distance),  # Lower = better
+        }
+        for chunk in chunks
+    ]
 
-    # -----------------------------------------------------
-    # 🔀 Ensure Document Diversity
-    # (Prevents one large doc dominating results)
-    # -----------------------------------------------------
-    final_results = []
-    seen_docs = set()
-
-    for r in results:
-        if (
-            r["document_id"] not in seen_docs
-            or len(final_results) < k
-        ):
-            final_results.append(r)
-            seen_docs.add(r["document_id"])
-
-        if len(final_results) >= k:
-            break
-
-    return final_results
+    return results
 
 
 # =========================================================
-# 🔹 TEXT-ONLY HELPER (Backward Compatibility)
+# 🔹 TEXT-ONLY HELPER
 # =========================================================
 def retrieve_chunk_texts(**kwargs):
     """
