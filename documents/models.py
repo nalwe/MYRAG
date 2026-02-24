@@ -3,6 +3,7 @@ from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.contrib.postgres.indexes import GinIndex
 from django.contrib.postgres.search import SearchVectorField, SearchVector
+from pgvector.django import VectorField
 
 from accounts.models import Organization
 
@@ -182,3 +183,22 @@ class DocumentAccess(models.Model):
 
     def __str__(self):
         return f"{self.user.username} → {self.document.display_name}"
+    
+
+
+
+class DocumentChunk(models.Model):
+    document = models.ForeignKey(
+        Document,
+        on_delete=models.CASCADE,
+        related_name="chunks",
+    )
+
+    content = models.TextField()
+
+    embedding = VectorField(dimensions=1536)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Chunk of {self.document.display_name}"
