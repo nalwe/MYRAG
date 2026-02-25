@@ -17,10 +17,23 @@ load_dotenv(BASE_DIR / ".env")
 # --------------------------------------------------
 SECRET_KEY = os.getenv("SECRET_KEY", "unsafe-dev-key")
 
-#DEBUG = os.getenv("DEBUG", "False") == "True"
-DEBUG = True
+DEBUG = os.getenv("DEBUG", "False") == "True"
 
-ALLOWED_HOSTS = ["lesgolegal.online", "www.lesgolegal.online", "127.0.0.1",]  # tighten in production
+ALLOWED_HOSTS = [
+    "lesgolegal.online",
+    "www.lesgolegal.online",
+]
+
+CSRF_TRUSTED_ORIGINS = [
+    "https://lesgolegal.online",
+    "https://www.lesgolegal.online",
+]
+
+# Required for DigitalOcean App Platform (proxy SSL)
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+SECURE_SSL_REDIRECT = not DEBUG
+SESSION_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SECURE = not DEBUG
 
 # --------------------------------------------------
 # APPLICATIONS
@@ -51,7 +64,6 @@ MIDDLEWARE = [
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
 
-    # Custom role permissions
     "accounts.middleware.RolePermissionMiddleware",
 
     "django.contrib.messages.middleware.MessageMiddleware",
@@ -85,7 +97,7 @@ TEMPLATES = [
 WSGI_APPLICATION = "rag_project.wsgi.application"
 
 # --------------------------------------------------
-# DATABASE (DigitalOcean Postgres ONLY and Local host)
+# DATABASE
 # --------------------------------------------------
 if os.getenv("USE_LOCAL_DB") == "True":
     DATABASES = {
@@ -101,7 +113,6 @@ else:
             ssl_require=True,
         )
     }
-
 
 # --------------------------------------------------
 # AUTHENTICATION
@@ -166,7 +177,7 @@ FILE_UPLOAD_HANDLERS = [
 ]
 
 # --------------------------------------------------
-# EMAIL (BREVO / SMTP)
+# EMAIL
 # --------------------------------------------------
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 
